@@ -1,4 +1,4 @@
-package com.github.drakepork.skyprisonclaims.services;
+package net.skyprison.skyprisonclaims.services;
 
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import org.bukkit.entity.Player;

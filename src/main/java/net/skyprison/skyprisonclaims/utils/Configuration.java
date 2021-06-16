@@ -1,4 +1,4 @@
-package com.github.drakepork.skyprisonclaims.utils;
+package net.skyprison.skyprisonclaims.utils;
 
 import com.google.common.collect.Lists;
 import com.sk89q.worldguard.protection.flags.Flags;

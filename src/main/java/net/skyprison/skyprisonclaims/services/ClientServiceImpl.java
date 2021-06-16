@@ -1,4 +1,4 @@
-package com.github.drakepork.skyprisonclaims.services;
+package net.skyprison.skyprisonclaims.services;
 
 import com.Zrips.sv.AreaShapes.CuboidArea;
 import com.Zrips.sv.AreaShapes.svUpdateType;

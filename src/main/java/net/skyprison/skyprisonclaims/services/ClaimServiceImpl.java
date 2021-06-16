@@ -1,4 +1,4 @@
-package com.github.drakepork.skyprisonclaims.services;
+package net.skyprison.skyprisonclaims.services;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -23,7 +23,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import com.github.drakepork.skyprisonclaims.utils.Configuration;
+import net.skyprison.skyprisonclaims.utils.Configuration;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;

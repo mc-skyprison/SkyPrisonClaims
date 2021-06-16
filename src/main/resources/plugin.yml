@@ -1,6 +1,6 @@
 name: SkyPrisonClaims
 version: ${project.version}
-main: com.github.drakepork.skyprisonclaims.Core
+main: net.skyprison.skyprisonclaims.SkyPrisonClaims
 api-version: 1.16
 depend: [WorldGuard, WorldEdit, WorldGuardExtraFlags, CMI]
 authors: [Goppi, DrakePork]
@@ -17,7 +17,6 @@ commands:
     usage: /<command>
     permission: skyprisonclaims.command.claimadmin
     permission-message: §4Error:§c You do not have permission to execute this command...
-
 permissions:
   skyprisonclaims.command.claim:
     description: Gives you access to /claim commands

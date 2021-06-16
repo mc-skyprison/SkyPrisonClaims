@@ -1,11 +1,11 @@
-package com.github.drakepork.skyprisonclaims.commands;
+package net.skyprison.skyprisonclaims.commands;
 
 import com.Zrips.CMI.Modules.Economy.Economy;
-import com.github.drakepork.skyprisonclaims.services.FileService;
-import com.github.drakepork.skyprisonclaims.utils.Configuration;
-import com.github.drakepork.skyprisonclaims.SkyPrisonClaims;
-import com.github.drakepork.skyprisonclaims.services.ClaimService;
-import com.github.drakepork.skyprisonclaims.services.ClientService;
+import net.skyprison.skyprisonclaims.services.FileService;
+import net.skyprison.skyprisonclaims.utils.Configuration;
+import net.skyprison.skyprisonclaims.SkyPrisonClaims;
+import net.skyprison.skyprisonclaims.services.ClaimService;
+import net.skyprison.skyprisonclaims.services.ClientService;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;

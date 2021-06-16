@@ -1,11 +1,12 @@
-package com.github.drakepork.skyprisonclaims;
+package net.skyprison.skyprisonclaims;
 
 import com.Zrips.CMI.CMI;
 import com.Zrips.CMI.Modules.Economy.Economy;
-import com.github.drakepork.skyprisonclaims.commands.Claim;
-import com.github.drakepork.skyprisonclaims.commands.ClaimAdmin;
-import com.github.drakepork.skyprisonclaims.utils.PlayerEventHandler;
+import net.skyprison.skyprisonclaims.commands.Claim;
+import net.skyprison.skyprisonclaims.commands.ClaimAdmin;
+import net.skyprison.skyprisonclaims.utils.PlayerEventHandler;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
+import net.skyprison.skyprisonclaims.services.*;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.configuration.ConfigurationSection;
@@ -13,7 +14,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
-import com.github.drakepork.skyprisonclaims.services.*;
 
 import java.io.File;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.github.drakepork.skyprisonclaims.services;
+package net.skyprison.skyprisonclaims.services;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;

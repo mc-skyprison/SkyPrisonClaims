@@ -1,4 +1,4 @@
-package com.github.drakepork.skyprisonclaims.services;
+package net.skyprison.skyprisonclaims.services;
 
 import com.google.common.collect.Lists;
 import org.bukkit.Bukkit;

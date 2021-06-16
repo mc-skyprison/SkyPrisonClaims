@@ -1,7 +1,6 @@
-package com.github.drakepork.skyprisonclaims.utils;
+package net.skyprison.skyprisonclaims.utils;
 
-import com.github.drakepork.skyprisonclaims.services.ClaimService;
-import com.github.drakepork.skyprisonclaims.utils.Configuration;
+import net.skyprison.skyprisonclaims.services.ClaimService;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -28,8 +27,8 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-import com.github.drakepork.skyprisonclaims.services.ClientService;
-import com.github.drakepork.skyprisonclaims.services.ClientServiceImpl;
+import net.skyprison.skyprisonclaims.services.ClientService;
+import net.skyprison.skyprisonclaims.services.ClientServiceImpl;
 
 import java.util.List;
 import java.util.Map;

@@ -1,8 +1,8 @@
-package com.github.drakepork.skyprisonclaims.commands;
+package net.skyprison.skyprisonclaims.commands;
 
 import com.Zrips.CMI.CMI;
 import com.Zrips.CMI.Containers.CMIUser;
-import com.github.drakepork.skyprisonclaims.SkyPrisonClaims;
+import net.skyprison.skyprisonclaims.SkyPrisonClaims;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.managers.RegionManager;
