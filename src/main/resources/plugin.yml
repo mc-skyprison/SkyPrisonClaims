@@ -1,0 +1,25 @@
+name: SkyPrisonClaims
+version: ${project.version}
+main: com.github.drakepork.skyprisonclaims.Core
+api-version: 1.16
+depend: [WorldGuard, WorldEdit, WorldGuardExtraFlags, CMI]
+authors: [Goppi, DrakePork]
+website: https://skyprison.net/
+description: Claims plugin for SkyPrison
+commands:
+  claim:
+    description: claim
+    usage: /<command>
+    permission: skyprisonclaims.command.claim
+    permission-message: §4Error:§c You do not have permission to execute this command...
+  claimadmin:
+    description: claimadmin
+    usage: /<command>
+    permission: skyprisonclaims.command.claimadmin
+    permission-message: §4Error:§c You do not have permission to execute this command...
+
+permissions:
+  skyprisonclaims.command.claim:
+    description: Gives you access to /claim commands
+  skyprisonclaims.command.claimadmin:
+    description: Gives you access to /claimadmin commands
