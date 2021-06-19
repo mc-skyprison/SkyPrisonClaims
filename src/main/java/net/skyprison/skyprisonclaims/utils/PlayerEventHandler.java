@@ -1,5 +1,12 @@
 package net.skyprison.skyprisonclaims.utils;
 
+import com.Zrips.CMI.CMI;
+import com.Zrips.CMI.Containers.CMIUser;
+import com.sk89q.worldedit.LocalSession;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.regions.RegionSelector;
+import com.sk89q.worldedit.regions.selector.CuboidRegionSelector;
+import com.sk89q.worldedit.regions.selector.RegionSelectorType;
 import net.skyprison.skyprisonclaims.services.ClaimService;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
@@ -16,22 +23,23 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
 import net.goldtreeservers.worldguardextraflags.flags.Flags;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.*;
 import net.skyprison.skyprisonclaims.services.ClientService;
 import net.skyprison.skyprisonclaims.services.ClientServiceImpl;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class PlayerEventHandler implements Listener {
 
@@ -47,6 +55,71 @@ public class PlayerEventHandler implements Listener {
 		this.ClaimService = ClaimService;
 		worlds = (List<String>) configurationSection.getList("worlds");
 		clientService = new ClientServiceImpl();
+	}
+
+	public void asConsole(String command){
+		Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+	}
+
+
+	@EventHandler
+	public void lavaBucketMine(PlayerBucketEmptyEvent event) {
+		if(!event.isCancelled()) {
+			Player player = event.getPlayer();
+			World pWorld = player.getWorld();
+			if (event.getBucket().equals(Material.LAVA_BUCKET)) {
+				RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+				RegionManager regions = container.get(BukkitAdapter.adapt(pWorld));
+				ApplicableRegionSet regionList = Objects.requireNonNull(regions).getApplicableRegions(BlockVector3.at(event.getBlock().getX(), event.getBlock().getY(), event.getBlock().getZ()));
+				if (pWorld.getName().equalsIgnoreCase("world_prison")) {
+					if(regionList.getRegions().contains(regions.getRegion("grass-mine"))) {
+						event.setCancelled(true);
+					} else if(regionList.getRegions().contains(regions.getRegion("desert-mine"))) {
+						event.setCancelled(true);
+					} else if(regionList.getRegions().contains(regions.getRegion("nether-mine"))) {
+						event.setCancelled(true);
+					} else if(regionList.getRegions().contains(regions.getRegion("snow-mine"))) {
+						event.setCancelled(true);
+					}
+				}
+			}
+		}
+	}
+
+	@EventHandler
+	public void mineLogin(PlayerLoginEvent event) {
+		if(!clientService.getPolygonalStatus(event.getPlayer())) {
+			LocalSession session = WorldEdit.getInstance().getSessionManager().get(BukkitAdapter.adapt(event.getPlayer()));
+			RegionSelector newSelector = new CuboidRegionSelector(session.getRegionSelector(BukkitAdapter.adapt(event.getPlayer().getWorld())));
+			session.setDefaultRegionSelector(RegionSelectorType.CUBOID);
+			session.setRegionSelector(BukkitAdapter.adapt(event.getPlayer().getWorld()), newSelector);
+		}
+
+		CMIUser player = CMI.getInstance().getPlayerManager().getUser(event.getPlayer());
+		if(player.getLogOutLocation() != null && player.getLogOutLocation().getWorld().getName().equalsIgnoreCase("world_prison")) {
+			org.bukkit.Location loc = player.getLogOutLocation();
+			RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+			RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+			assert regions != null;
+			ApplicableRegionSet regionList = regions.getApplicableRegions(BlockVector3.at(loc.getX(), loc.getY(), loc.getZ()));
+			if(regionList.getRegions().contains(regions.getRegion("grass-mine"))) {
+				asConsole("warp grass-mine " + player.getName());
+			} else if(regionList.getRegions().contains(regions.getRegion("desert-mine"))) {
+				asConsole("warp desert-mine " + player.getName());
+			} else if(regionList.getRegions().contains(regions.getRegion("nether-mine"))) {
+				asConsole("warp nether-mine " + player.getName());
+			} else if(regionList.getRegions().contains(regions.getRegion("snow-mine"))) {
+				asConsole("warp snow-mine " + player.getName());
+			} else if(regionList.getRegions().contains(regions.getRegion("donor-mine1"))) {
+				asConsole("warp donor-mine " + player.getName());
+			} else if(regionList.getRegions().contains(regions.getRegion("donor-mine2"))) {
+				asConsole("warp donor-mine1 " + player.getName());
+			} else if(regionList.getRegions().contains(regions.getRegion("donor-mine3"))) {
+				asConsole("warp donor-mine2 " + player.getName());
+			} else if(regionList.getRegions().contains(regions.getRegion("guard-secretview"))) {
+				asConsole("warp prison " + player.getName());
+			}
+		}
 	}
 
 	@EventHandler
@@ -115,6 +188,7 @@ public class PlayerEventHandler implements Listener {
 							}
 						}
 					}
+					assert region != null;
 					switch (event.getSlot()) {
 						case 8:
 							if(player.hasPermission("skyprisonclaims.flags.donor")){
@@ -527,18 +601,19 @@ public class PlayerEventHandler implements Listener {
 
 	@EventHandler
 	public static void onPlayerInteract(final PlayerInteractEvent e) {
-		if(e != null && e.getPlayer() != null){
+		if(e != null) {
 			final Player player = e.getPlayer();
 			if (worlds.contains(player.getWorld().getName())) {
 				final RegionContainer regionContainer = WorldGuard.getInstance().getPlatform().getRegionContainer();
 				final RegionManager regionManager = regionContainer.get(BukkitAdapter.adapt(player.getWorld()));
 
-				if (e.getAction() != null && e.getAction() == Action.RIGHT_CLICK_BLOCK && e.getItem() != null && e.getItem().getType() == Material.STICK) {
-					Location toLocWE = BukkitAdapter.adapt(e.getClickedBlock().getLocation());
+				if (e.getAction() == Action.RIGHT_CLICK_BLOCK && e.getItem() != null && e.getItem().getType() == Material.STICK) {
+					Location toLocWE = BukkitAdapter.adapt(Objects.requireNonNull(e.getClickedBlock()).getLocation());
 					LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
 					RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
 					RegionQuery query = container.createQuery();
 					if(query.testState(toLocWE, localPlayer, com.sk89q.worldguard.protection.flags.Flags.ENTRY) || player.isOp()) {
+						assert regionManager != null;
 						final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(e.getClickedBlock().getX(), e.getClickedBlock().getY(), e.getClickedBlock().getZ()));
 						if(!regionList.getRegions().isEmpty()){
 							ProtectedRegion region = null;
@@ -549,19 +624,20 @@ public class PlayerEventHandler implements Listener {
 									region = rg;
 								}
 							}
+							assert region != null;
 							if (region.getId().startsWith("claim_")) {
 								player.sendMessage(Configuration.PREFIX + "Claim information:");
-								player.sendMessage(ChatColor.YELLOW + "Claim id: " + region.getId().substring(43, region.getId().length()));
+								player.sendMessage(ChatColor.YELLOW + "Claim id: " + region.getId().substring(43));
 								if (region.getParent() != null){
 									player.sendMessage(ChatColor.YELLOW + "Claim parent: " + region.getParent().getId().split("_" + player.getUniqueId() + "_")[1]);
 								}
 								clientService.displayClaimBorder(player, region);
 								player.sendMessage(ChatColor.YELLOW + "Claim coords: " + region.getMinimumPoint() + " - " + region.getMaximumPoint());
-								String tmp = "";
-								final Map map = region.getFlags();
-								for (final Flag flag : region.getFlags().keySet()) {
+								StringBuilder tmp = new StringBuilder();
+								final Map<Flag<?>, Object> map = region.getFlags();
+								for (final Flag<?> flag : region.getFlags().keySet()) {
 									map.get(flag);
-									tmp += flag.getName() + ": " + map.get(flag) + "; ";
+									tmp.append(flag.getName()).append(": ").append(map.get(flag)).append("; ");
 								}
 								player.sendMessage(ChatColor.YELLOW + "Claim flags: " + tmp);
 								player.sendMessage(ChatColor.YELLOW + "Claim owner: " + region.getOwners().getPlayers());

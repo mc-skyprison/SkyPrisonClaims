@@ -1,30 +1,26 @@
 package net.skyprison.skyprisonclaims;
 
-import com.Zrips.CMI.CMI;
-import com.Zrips.CMI.Modules.Economy.Economy;
 import net.skyprison.skyprisonclaims.commands.Claim;
 import net.skyprison.skyprisonclaims.commands.ClaimAdmin;
 import net.skyprison.skyprisonclaims.utils.PlayerEventHandler;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import net.skyprison.skyprisonclaims.services.*;
 import org.bukkit.Bukkit;
-import org.bukkit.command.CommandExecutor;
+import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
-public final class SkyPrisonClaims extends JavaPlugin implements CommandExecutor {
+public final class SkyPrisonClaims extends JavaPlugin {
 
-	private Player player;
-	private Economy economy;
 	private ConfigurationSection configurationSection;
 	private FileService fileService;
 	private ClientService clientService;
@@ -47,7 +43,7 @@ public final class SkyPrisonClaims extends JavaPlugin implements CommandExecutor
 		clientService = new ClientServiceImpl();
 		claimService = new ClaimServiceImpl(fileService, clientService);
 		adminCmd = new ClaimAdmin(this);
-		playerCmd = new Claim(this, claimService, clientService, economy, fileService);
+		playerCmd = new Claim(this, claimService, clientService, fileService);
 		logger.info("Loaded services");
 		final File f = new File(this.getDataFolder() + "/");
 		if(!f.exists()) {
@@ -63,7 +59,6 @@ public final class SkyPrisonClaims extends JavaPlugin implements CommandExecutor
 
 		loadConfig();
 		logger.info("Loaded configuration!");
-		setupEconomy();
 		logger.info("Loaded economy");
 		getServer().getPluginManager().registerEvents(new PlayerEventHandler(getWorldedit(), configurationSection, claimService), this);
 		logger.info("Loaded listeners");
@@ -84,6 +79,26 @@ public final class SkyPrisonClaims extends JavaPlugin implements CommandExecutor
 		}
 	}
 
+	public String colourMessage(String message) {
+		message = translateHexColorCodes(ChatColor.translateAlternateColorCodes('&', message));
+		return message;
+	}
+
+	private String translateHexColorCodes(String message) {
+		final Pattern hexPattern = Pattern.compile("\\{#" + "([A-Fa-f0-9]{6})" + "}");
+		Matcher matcher = hexPattern.matcher(message);
+		StringBuffer buffer = new StringBuffer(message.length() + 4 * 8);
+		while (matcher.find()) {
+			String group = matcher.group(1);
+			matcher.appendReplacement(buffer, ChatColor.COLOR_CHAR + "x"
+					+ ChatColor.COLOR_CHAR + group.charAt(0) + ChatColor.COLOR_CHAR + group.charAt(1)
+					+ ChatColor.COLOR_CHAR + group.charAt(2) + ChatColor.COLOR_CHAR + group.charAt(3)
+					+ ChatColor.COLOR_CHAR + group.charAt(4) + ChatColor.COLOR_CHAR + group.charAt(5)
+			);
+		}
+		return matcher.appendTail(buffer).toString();
+	}
+
 	private void loadConfig() {
 		configurationSection = getConfig();
 		fileService.setConfigurationSection(configurationSection);
@@ -91,17 +106,5 @@ public final class SkyPrisonClaims extends JavaPlugin implements CommandExecutor
 		totalBlockLimit = configurationSection.getBoolean("claimblock.totalBlockLimit");
 		totalBlockAmountLimit = configurationSection.getInt("claimblock.totalBlockAmountLimit");
 		claimBlockPrice = configurationSection.getInt("claimblock.blockPrice");
-	}
-
-	private boolean setupEconomy() {
-		if (CMI.getInstance() == null) {
-			return false;
-		}
-		final RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
-		if (rsp == null) {
-			return false;
-		}
-		economy = rsp.getProvider();
-		return economy != null;
 	}
 }

@@ -18,6 +18,9 @@ public class ClientServiceImpl implements ClientService {
 
 	HashMap<UUID, Boolean> noSkyBedrock = new HashMap<>();
 
+
+	HashMap<UUID, Boolean> customShape = new HashMap<>();
+
 	@Override
 	public void displayClaimBorder(final Player player, final ProtectedRegion region) {
 		final int minX = region.getMinimumPoint().getBlockX();
@@ -76,7 +79,26 @@ public class ClientServiceImpl implements ClientService {
 		if(noSkyBedrock.containsKey(player.getUniqueId())) {
 			return noSkyBedrock.get(player.getUniqueId());
 		} else {
-			return null;
+			return false;
+		}
+	}
+
+	@Override
+	public void addPolygonalStatus(Player player) {
+		customShape.put(player.getUniqueId(), true);
+	}
+
+	@Override
+	public void removePolygonalStatus(Player player) {
+		customShape.remove(player.getUniqueId());
+	}
+
+	@Override
+	public Boolean getPolygonalStatus(Player player) {
+		if(customShape.containsKey(player.getUniqueId())) {
+			return customShape.get(player.getUniqueId());
+		} else {
+			return false;
 		}
 	}
 }

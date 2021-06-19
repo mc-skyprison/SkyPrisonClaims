@@ -1,6 +1,11 @@
 package net.skyprison.skyprisonclaims.commands;
 
-import com.Zrips.CMI.Modules.Economy.Economy;
+import com.Zrips.CMI.CMI;
+import com.Zrips.CMI.Containers.CMIUser;
+import com.sk89q.worldedit.LocalSession;
+import com.sk89q.worldedit.regions.selector.CuboidRegionSelector;
+import com.sk89q.worldedit.regions.selector.Polygonal2DRegionSelector;
+import com.sk89q.worldedit.regions.selector.RegionSelectorType;
 import net.skyprison.skyprisonclaims.services.FileService;
 import net.skyprison.skyprisonclaims.utils.Configuration;
 import net.skyprison.skyprisonclaims.SkyPrisonClaims;
@@ -22,6 +27,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 
@@ -29,21 +35,20 @@ public class Claim implements CommandExecutor {
 	private final SkyPrisonClaims plugin;
 	private final ClaimService claimService;
 	private final ClientService clientService;
-	private final Economy economy;
 	private final FileService fileService;
 
 
 
-	public Claim(SkyPrisonClaims plugin, ClaimService claimService, ClientService clientService, Economy economy, FileService fileService) {
+	public Claim(SkyPrisonClaims plugin, ClaimService claimService, ClientService clientService, FileService fileService) {
 		this.plugin = plugin;
 		this.claimService = claimService;
 		this.clientService = clientService;
-		this.economy = economy;
 		this.fileService = fileService;
 	}
 
+
 	@Override
-	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+	public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String[] args) {
 		if(sender instanceof Player) {
 			Player player = (Player) sender;
 			final RegionContainer regionContainer = WorldGuard.getInstance().getPlatform().getRegionContainer();
@@ -54,6 +59,8 @@ public class Claim implements CommandExecutor {
 			FileConfiguration conf = YamlConfiguration.loadConfiguration(f);
 			final int totalClaimBlocks = conf.getInt("player.totalClaimBlocks");
 			final int totalClaimBlocksInUse = conf.getInt("player.totalClaimBlocksInUse");
+
+			CMIUser user = CMI.getInstance().getPlayerManager().getUser(player);
 
 			final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(fileService.getPlayerFile(player));
 
@@ -72,35 +79,36 @@ public class Claim implements CommandExecutor {
 						player.sendMessage(ChatColor.YELLOW + "/claim removemember <player>" + ChatColor.WHITE + " - Remove member from your claim.");
 						player.sendMessage(ChatColor.YELLOW + "/claim addadmin <player>" + ChatColor.WHITE + " - Add an admin to your claim.");
 						player.sendMessage(ChatColor.YELLOW + "/claim removeadmin <player>" + ChatColor.WHITE + " - Remove an admin from your claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim transfer <player>" + ChatColor.WHITE + " - Transfer claim ownership to a different person.");
-						player.sendMessage(ChatColor.YELLOW + "/claim entrypermit <player>" + ChatColor.WHITE + " - Allow a non-member to enter your claim regardless of entry flag");
+/*						player.sendMessage(ChatColor.YELLOW + "/claim transfer <player>" + ChatColor.WHITE + " - Transfer claim ownership to a different person.");
+						player.sendMessage(ChatColor.YELLOW + "/claim entrypermit <player>" + ChatColor.WHITE + " - Allow a non-member to enter your claim regardless of entry flag");*/
 						player.sendMessage(ChatColor.YELLOW + "/claim flags" + ChatColor.WHITE + " - Edit flags in a GUI");
 						player.sendMessage(ChatColor.YELLOW + "/claim setflag <claimname> <flag> <value>" + ChatColor.WHITE + " - Set flag to claim.");
 						player.sendMessage(ChatColor.YELLOW + "/claim removeflag <claimname> <flag>" + ChatColor.WHITE + " - Remove flag from claim.");
 						player.sendMessage(ChatColor.YELLOW + "/claim rename <claimname> <newClaimName>" + ChatColor.WHITE + " - Rename a claim.");
 						player.sendMessage(ChatColor.YELLOW + "/claim expand <amount>" + ChatColor.WHITE + " - Expand a claim in the direction you are facing.");
 						player.sendMessage(ChatColor.YELLOW + "/claim customheight" + ChatColor.WHITE + " - Create a claim with a custom height.");
+						player.sendMessage(ChatColor.YELLOW + "/claim customshape" + ChatColor.WHITE + " - Create a claim with a custom shape.");
 						player.sendMessage(ChatColor.YELLOW + "/claim nearbyclaims <radius>" + ChatColor.WHITE + " - Get a list of nearby claims.");
-
 						break;
 					case "remove":
 						if (args.length >= 2 && args[1] != null) {
 							claimService.removeClaim(player, args[1], regionManager);
 						} else {
-
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim remove <claimname>"));
 						}
 						break;
 					case "create":
 						if (args.length >= 2 && args[1] != null) {
 							claimService.createClaim(player, args[1], regionManager, regionSelector);
 						} else {
-
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim create <claimname>"));
 						}
 						break;
 					case "list":
 						claimService.listPlayerClaims(player, regionManager);
+						break;
 					case "customheight":
-						if(clientService.getPlayerNoSkyBedrock(player) != null) {
+						if(clientService.getPlayerNoSkyBedrock(player)) {
 							clientService.removePlayerNoSkyBedrock(player);
 							player.sendMessage(Configuration.PREFIX + "Disabled custom height claiming! New claims are now sky to bedrock");
 						} else {
@@ -108,11 +116,28 @@ public class Claim implements CommandExecutor {
 							player.sendMessage(Configuration.PREFIX + "Enabled custom height claiming! New claims are now what you select");
 						}
 						break;
+					case "customshape":
+						LocalSession session = WorldEdit.getInstance().getSessionManager().get(BukkitAdapter.adapt(player));
+						final RegionSelector newSelector;
+						if(clientService.getPolygonalStatus(player)) {
+							clientService.removePolygonalStatus(player);
+							player.sendMessage(Configuration.PREFIX + "Disabled custom shape claiming! New claims are now square!");
+							newSelector = new CuboidRegionSelector(regionSelector);
+							session.setDefaultRegionSelector(RegionSelectorType.CUBOID);
+						} else {
+							clientService.addPolygonalStatus(player);
+							player.sendMessage(Configuration.PREFIX + "Enabled custom shape claiming! New claims are now what in the shape you select.");
+							newSelector = new Polygonal2DRegionSelector(regionSelector);
+							session.setDefaultRegionSelector(RegionSelectorType.POLYGON);
+						}
+						session.setRegionSelector(BukkitAdapter.adapt(player.getWorld()), newSelector);
+						break;
 					case "info":
 						if (args.length >= 2 && args[1] != null) {
 							claimService.getClaimInfoById(player, args[1], regionManager);
 						} else {
 							claimService.getClaimInfoFromPlayerPosition(player, regionManager);
+							assert regionManager != null;
 							final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(player.getLocation().getX(), player.getLocation().getY(), player.getLocation().getZ()));
 							if(!regionList.getRegions().isEmpty()) {
 								ProtectedRegion region = null;
@@ -131,28 +156,28 @@ public class Claim implements CommandExecutor {
 						if (args.length >= 2 && (args[1] != null)) {
 							claimService.addMember(player, args[1], regionManager);
 						} else {
-
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim addmember <player>"));
 						}
 						break;
 					case "removemember":
 						if (args.length >= 2 && (args[1] != null)) {
 							claimService.removeMember(player, args[1], regionManager);
 						} else {
-
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim removemember <player>"));
 						}
 						break;
 					case "addadmin":
 						if (args.length >= 2 && (args[1] != null)) {
 							claimService.addAdmin(player, args[1], regionManager);
 						} else {
-
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim addadmin <player>"));
 						}
 						break;
 					case "removeadmin":
 						if (args.length >= 2 && (args[1] != null)) {
 							claimService.removeAdmin(player, args[1], regionManager);
 						} else {
-
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim create <removeadmin>"));
 						}
 						break;
 					case "transfer":
@@ -164,12 +189,12 @@ public class Claim implements CommandExecutor {
 						if (args.length >= 4 && (args[1] != null && args[2] != null && args[3] != null)) {
 							final String claimName = args[1];
 							final String flagName = args[2];
-							String flagValue = args[3];
+							StringBuilder flagValue = new StringBuilder(args[3]);
 							for (int i = 4; i<args.length; i++)
-								flagValue = flagValue + " " + args[i];
-							claimService.setFlag(player, claimName, flagName, flagValue, regionManager);
+								flagValue.append(" ").append(args[i]);
+							claimService.setFlag(player, claimName, flagName, flagValue.toString(), regionManager);
 						} else {
-
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim setflag <claimname> <flag> <value>"));
 						}
 						break;
 					case "removeflag":
@@ -177,6 +202,8 @@ public class Claim implements CommandExecutor {
 							final String claimName = args[1];
 							final String flagName = args[2];
 							claimService.removeFlag(player, claimName, flagName, regionManager);
+						} else {
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim removeflag <claimname> <flag>"));
 						}
 						break;
 					case "flags":
@@ -188,24 +215,24 @@ public class Claim implements CommandExecutor {
 								final int blocks = Integer.parseInt(args[1]);
 								if (plugin.totalBlockLimit) {
 									if ((totalClaimBlocks + blocks) <= plugin.totalBlockAmountLimit) {
-										if (blocks * plugin.claimBlockPrice <= economy.getBalance(player)) {
-											economy.withdrawPlayer(player, plugin.claimBlockPrice * blocks);
-											player.sendMessage(Configuration.PREFIX + "You bought " + blocks + " blocks for $" + plugin.claimBlockPrice * blocks + ". Your new balance is: $" + economy.getBalance(player));
-											playerConfig.set("player.totalClaimBlocks", (Integer) playerConfig.get("player.totalClaimBlocks") + blocks);
+										if (blocks * plugin.claimBlockPrice <= user.getBalance()) {
+											user.withdraw((double) (plugin.claimBlockPrice * blocks));
+											player.sendMessage(Configuration.PREFIX + "You bought " + blocks + " blocks for $" + plugin.claimBlockPrice * blocks + ". Your new balance is: $" + user.getBalance());
+											playerConfig.set("player.totalClaimBlocks", playerConfig.getInt("player.totalClaimBlocks") + blocks);
 											fileService.saveToFile(playerConfig, player);
 										} else {
-											player.sendMessage(Configuration.PREFIX + "Not enough money to buy that amount of blocks. You need $" + ((plugin.claimBlockPrice * blocks) - economy.getBalance(player)) + " more.");
+											player.sendMessage(Configuration.PREFIX + "Not enough money to buy that amount of blocks. You need $" + ((plugin.claimBlockPrice * blocks) - user.getBalance()) + " more.");
 										}
 									} else {
 										player.sendMessage(Configuration.PREFIX + "Limit reached. You can only buy " + (plugin.totalBlockAmountLimit - totalClaimBlocks) + " more blocks.");
 									}
-								} else if (blocks * plugin.claimBlockPrice <= economy.getBalance(player)) {
-									economy.withdrawPlayer(player, plugin.claimBlockPrice * blocks);
-									player.sendMessage(Configuration.PREFIX + "You bought " + blocks + " blocks for $" + plugin.claimBlockPrice * blocks + ". Your new balance is: $" + economy.getBalance(player));
-									playerConfig.set("player.totalClaimBlocks", (Integer) playerConfig.get("player.totalClaimBlocks") + blocks);
+								} else if (blocks * plugin.claimBlockPrice <= user.getBalance()) {
+									user.withdraw((double) (plugin.claimBlockPrice * blocks));
+									player.sendMessage(Configuration.PREFIX + "You bought " + blocks + " blocks for $" + plugin.claimBlockPrice * blocks + ". Your new balance is: $" + user.getBalance());
+									playerConfig.set("player.totalClaimBlocks", playerConfig.getInt("player.totalClaimBlocks") + blocks);
 									fileService.saveToFile(playerConfig, player);
 								} else {
-									player.sendMessage(Configuration.PREFIX + "Not enough money to buy that amount of blocks. You need $" + ((plugin.claimBlockPrice * blocks) - economy.getBalance(player)) + " more.");
+									player.sendMessage(Configuration.PREFIX + "Not enough money to buy that amount of blocks. You need $" + ((plugin.claimBlockPrice * blocks) - user.getBalance()) + " more.");
 								}
 
 							} catch (final NumberFormatException nfe) {
@@ -221,7 +248,7 @@ public class Claim implements CommandExecutor {
 					case "expand":
 						if (args.length >= 2 && (args[1] != null)) {
 							if(args[1].matches("[1-9]\\d*")) {
-								claimService.expandClaim(player, Integer.valueOf(args[1]), regionManager);
+								claimService.expandClaim(player, Integer.parseInt(args[1]), regionManager);
 							} else
 								player.sendMessage(Configuration.PREFIX + "Invalid amount: " + args[1] +  ".");
 						}
@@ -230,13 +257,13 @@ public class Claim implements CommandExecutor {
 						if (args.length >= 3 && (args[1] != null)&& (args[2] != null)) {
 							claimService.renameClaim(player, args[1], args[2], regionManager);
 						} else {
-
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim rename <claimname> <new claimname>"));
 						}
 						break;
 					case "nearbyclaims":
 						if (args.length >= 2 && args[1] != null) {
 							if(args[1].matches("[1-9]\\d*")) {
-								claimService.getNearbyClaims(player, Integer.valueOf(args[1]), regionManager);
+								claimService.getNearbyClaims(player, Integer.parseInt(args[1]), regionManager);
 							}
 							else {
 								player.sendMessage(Configuration.PREFIX + "Radius must be a number!");
@@ -244,9 +271,6 @@ public class Claim implements CommandExecutor {
 							return true;
 						}
 						break;
-					case "entrypermit":
-
-
 				}
 			}
 		}
