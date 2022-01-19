@@ -20,6 +20,7 @@ import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -30,6 +31,8 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.UUID;
 
 public class Claim implements CommandExecutor {
 	private final SkyPrisonClaims plugin;
@@ -44,6 +47,27 @@ public class Claim implements CommandExecutor {
 		this.claimService = claimService;
 		this.clientService = clientService;
 		this.fileService = fileService;
+	}
+
+	public void helpMessage(Player player) {
+		player.sendMessage(ChatColor.YELLOW + "---------------------- " + Configuration.PREFIX + "----------------------");
+		player.sendMessage(ChatColor.YELLOW + "/claim list" + ChatColor.WHITE + " - List of your claims.");
+		player.sendMessage(ChatColor.YELLOW + "/claim info (claim name)" + ChatColor.WHITE + " - Info about the claim.");
+		player.sendMessage(ChatColor.YELLOW + "/claim blocks" + ChatColor.WHITE + " - Display how many claimblocks you have.");
+		player.sendMessage(ChatColor.YELLOW + "/claim buyblocks <amount>" + ChatColor.WHITE + " - Buy more claimblocks.");
+		player.sendMessage(ChatColor.YELLOW + "/claim create <claimname>" + ChatColor.WHITE + " - Create a new claim.");
+		player.sendMessage(ChatColor.YELLOW + "/claim remove <claimname>" + ChatColor.WHITE + " - Remove a claim.");
+		player.sendMessage(ChatColor.YELLOW + "/claim addmember <player>" + ChatColor.WHITE + " - Add member to your claim.");
+		player.sendMessage(ChatColor.YELLOW + "/claim removemember <player>" + ChatColor.WHITE + " - Remove member from your claim.");
+		player.sendMessage(ChatColor.YELLOW + "/claim addadmin <player>" + ChatColor.WHITE + " - Add an admin to your claim.");
+		player.sendMessage(ChatColor.YELLOW + "/claim removeadmin <player>" + ChatColor.WHITE + " - Remove an admin from your claim.");
+		player.sendMessage(ChatColor.YELLOW + "/claim transfer <claim> <player>" + ChatColor.WHITE + " - Transfer claim ownership to a different person.");
+		player.sendMessage(ChatColor.YELLOW + "/claim flags (claim)" + ChatColor.WHITE + " - View/edit flags");
+		player.sendMessage(ChatColor.YELLOW + "/claim rename <claimname> <newClaimName>" + ChatColor.WHITE + " - Rename a claim.");
+		player.sendMessage(ChatColor.YELLOW + "/claim expand <amount>" + ChatColor.WHITE + " - Expand a claim in the direction you are facing.");
+		player.sendMessage(ChatColor.YELLOW + "/claim customheight" + ChatColor.WHITE + " - Create a claim with a custom height.");
+		player.sendMessage(ChatColor.YELLOW + "/claim customshape" + ChatColor.WHITE + " - Create a claim with a custom shape.");
+		player.sendMessage(ChatColor.YELLOW + "/claim nearby <radius>" + ChatColor.WHITE + " - Get a list of nearby claims.");
 	}
 
 
@@ -66,40 +90,29 @@ public class Claim implements CommandExecutor {
 
 			if (args.length > 0) {
 				switch (args[0].toLowerCase()) {
-					case "help":
-						player.sendMessage(ChatColor.YELLOW + "---------------------- " + Configuration.PREFIX + "----------------------");
-						player.sendMessage(ChatColor.YELLOW + "/claim list" + ChatColor.WHITE + " - List of your claims.");
-						player.sendMessage(ChatColor.YELLOW + "/claim info" + ChatColor.WHITE + " - Info about the claim you are standing in.");
-						player.sendMessage(ChatColor.YELLOW + "/claim info <claimname>" + ChatColor.WHITE + " - Info about a specific claim. Must be yours.");
-						player.sendMessage(ChatColor.YELLOW + "/claim claimblocks" + ChatColor.WHITE + " - Display how many claimblocks you have.");
-						player.sendMessage(ChatColor.YELLOW + "/claim buyclaimblocks <amount>" + ChatColor.WHITE + " - Buy more claimblocks.");
-						player.sendMessage(ChatColor.YELLOW + "/claim create <claimname>" + ChatColor.WHITE + " - Create a new claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim remove <claimname>" + ChatColor.WHITE + " - Remove a claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim addmember <player>" + ChatColor.WHITE + " - Add member to your claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim removemember <player>" + ChatColor.WHITE + " - Remove member from your claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim addadmin <player>" + ChatColor.WHITE + " - Add an admin to your claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim removeadmin <player>" + ChatColor.WHITE + " - Remove an admin from your claim.");
-/*						player.sendMessage(ChatColor.YELLOW + "/claim transfer <player>" + ChatColor.WHITE + " - Transfer claim ownership to a different person.");
-						player.sendMessage(ChatColor.YELLOW + "/claim entrypermit <player>" + ChatColor.WHITE + " - Allow a non-member to enter your claim regardless of entry flag");*/
-						player.sendMessage(ChatColor.YELLOW + "/claim flags" + ChatColor.WHITE + " - Edit flags in a GUI");
-						player.sendMessage(ChatColor.YELLOW + "/claim setflag <claimname> <flag> <value>" + ChatColor.WHITE + " - Set flag to claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim removeflag <claimname> <flag>" + ChatColor.WHITE + " - Remove flag from claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim rename <claimname> <newClaimName>" + ChatColor.WHITE + " - Rename a claim.");
-						player.sendMessage(ChatColor.YELLOW + "/claim expand <amount>" + ChatColor.WHITE + " - Expand a claim in the direction you are facing.");
-						player.sendMessage(ChatColor.YELLOW + "/claim customheight" + ChatColor.WHITE + " - Create a claim with a custom height.");
-						player.sendMessage(ChatColor.YELLOW + "/claim customshape" + ChatColor.WHITE + " - Create a claim with a custom shape.");
-						player.sendMessage(ChatColor.YELLOW + "/claim nearbyclaims <radius>" + ChatColor.WHITE + " - Get a list of nearby claims.");
-						break;
 					case "remove":
 						if (args.length >= 2 && args[1] != null) {
-							claimService.removeClaim(player, args[1], regionManager);
+							if(claimService.removeClaim(player, args[1], regionManager)) {
+								player.sendMessage(Configuration.PREFIX + "Claim " + args[1] + " has been removed!");
+							} else {
+								player.sendMessage(Configuration.PREFIX + "No claim with the name " + args[1] + " found!");
+							}
 						} else {
 							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim remove <claimname>"));
 						}
 						break;
 					case "create":
 						if (args.length >= 2 && args[1] != null) {
-							claimService.createClaim(player, args[1], regionManager, regionSelector);
+							if(plugin.getConfig().getStringList("worlds").contains(player.getWorld().getName())) {
+								if (regionSelector.isDefined()) {
+									claimService.createClaim(player, args[1], regionManager, regionSelector);
+								} else {
+									player.sendMessage(plugin.colourMessage("&cYou havn't selected two points! Use /claimwand to get the claim wand."));
+								}
+							}
+							else {
+								player.sendMessage(plugin.colourMessage("&cYou can't claim in this world!"));
+							}
 						} else {
 							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim create <claimname>"));
 						}
@@ -116,6 +129,17 @@ public class Claim implements CommandExecutor {
 							player.sendMessage(Configuration.PREFIX + "Enabled custom height claiming! New claims are now what you select");
 						}
 						break;
+/*					case "entry":
+						if(args.length > 1) {
+							if(CMI.getInstance().getPlayerManager().getUser(args[1]) != null) {
+								claimService.entryPlayer(player, CMI.getInstance().getPlayerManager().getUser(args[1]).getOfflinePlayer(), regionManager);
+							} else {
+								player.sendMessage(plugin.colourMessage("&cThats not a valid player!"));
+							}
+						} else {
+							player.sendMessage(plugin.colourMessage("&cCorrect Usage: /claim entry allow/deny <player>"));
+						}
+						break;*/
 					case "customshape":
 						LocalSession session = WorldEdit.getInstance().getSessionManager().get(BukkitAdapter.adapt(player));
 						final RegionSelector newSelector;
@@ -181,35 +205,77 @@ public class Claim implements CommandExecutor {
 						}
 						break;
 					case "transfer":
-						if (args.length >= 2 && (args[1] != null)) {
-							claimService.transferOwner(player, args[1], regionManager);
-						}
-						break;
-					case "setflag":
-						if (args.length >= 4 && (args[1] != null && args[2] != null && args[3] != null)) {
-							final String claimName = args[1];
-							final String flagName = args[2];
-							StringBuilder flagValue = new StringBuilder(args[3]);
-							for (int i = 4; i<args.length; i++)
-								flagValue.append(" ").append(args[i]);
-							claimService.setFlag(player, claimName, flagName, flagValue.toString(), regionManager);
+						if (args.length == 3) {
+							claimService.transferOwner(player, args[1], args[2], regionManager);
+						} else if(args.length == 7) {
+							if(args[1].equalsIgnoreCase("confirm")) {
+								HashMap<UUID, UUID> transferRequest = claimService.transferRequest();
+								if (transferRequest.containsKey(player.getUniqueId())) {
+									final RegionManager newManager = regionContainer.get(BukkitAdapter.adapt(Bukkit.getWorld(args[5])));
+									claimService.transferConfirm(Bukkit.getPlayer(args[2]), args[3], Bukkit.getPlayer(args[4]), newManager, Long.parseLong(args[6]));
+								} else {
+									player.sendMessage(Configuration.PREFIX + "You dont have any pending claim transfers!");
+								}
+							}
+						} else if(args.length == 2) {
+							if(args[1].equalsIgnoreCase("decline")) {
+								HashMap<UUID, UUID> transferRequest = claimService.transferRequest();
+								if (transferRequest.containsKey(player.getUniqueId())) {
+									player.sendMessage(Configuration.PREFIX + "You declined the transfer!");
+									Player oPlayer = Bukkit.getPlayer(transferRequest.get(player.getUniqueId()));
+									oPlayer.sendMessage(Configuration.PREFIX + "Your transfer request was declined by " + player.getName());
+									transferRequest.remove(player.getUniqueId());
+								} else {
+									player.sendMessage(Configuration.PREFIX + "You dont have any pending claim transfers!");
+								}
+							}
 						} else {
-							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim setflag <claimname> <flag> <value>"));
-						}
-						break;
-					case "removeflag":
-						if (args.length >= 3 && (args[1] != null && args[2] != null)) {
-							final String claimName = args[1];
-							final String flagName = args[2];
-							claimService.removeFlag(player, claimName, flagName, regionManager);
-						} else {
-							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim removeflag <claimname> <flag>"));
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim transfer <claimname> <player>"));
 						}
 						break;
 					case "flags":
-						claimService.createFlagGUI(player);
+						if(args.length == 1) {
+							int highestPrior = 0;
+							ProtectedRegion region = null;
+							RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+							RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+							final ApplicableRegionSet regionList = regions.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
+									player.getLocation().getY(), player.getLocation().getZ()));
+							if (!regionList.getRegions().isEmpty()) {
+								for (final ProtectedRegion pRegion : regionList) {
+									if (pRegion.getId().startsWith("claim_")) {
+										if (pRegion.getPriority() > highestPrior) {
+											highestPrior = pRegion.getPriority();
+											region = pRegion;
+										}
+									}
+								}
+								if(region != null) {
+									claimService.createFlagGUI(player, region);
+								} else {
+									player.sendMessage(Configuration.PREFIX + "There is no claim here!");
+								}
+							} else {
+								player.sendMessage(Configuration.PREFIX + "There is no claim here!");
+							}
+						} else if(args.length == 2) {
+							RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+							RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+							String regionName = "claim_" + player.getUniqueId() + "_" + args[1];
+							if(regions.getRegion(regionName) != null) {
+								claimService.createFlagGUI(player, regions.getRegion(regionName));
+							} else {
+								player.sendMessage(Configuration.PREFIX + "No claim with that name!");
+							}
+						} else {
+							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim flags (region)"));
+						}
+						break;
+					case "wand":
+						player.performCommand("//wand");
 						break;
 					case "buyclaimblocks":
+					case "buyblocks":
 						if (args.length >= 2 && (args[1] != null)) {
 							try {
 								final int blocks = Integer.parseInt(args[1]);
@@ -238,9 +304,12 @@ public class Claim implements CommandExecutor {
 							} catch (final NumberFormatException nfe) {
 								player.sendMessage(Configuration.PREFIX + "Amount must be a number!");
 							}
+						} else {
+							player.sendMessage(plugin.colourMessage("&cCorrect Usage: /claim buyblocks <amount>\n&7Block Cost: &8$" + plugin.claimBlockPrice));
 						}
 						break;
 					case "claimblocks":
+					case "blocks":
 						player.sendMessage(ChatColor.YELLOW + "---=== Claimblocks ===---"
 								+ "\nTotal Claimblocks: " + totalClaimBlocks
 								+ "\nClaimblocks Left: " + (totalClaimBlocks - totalClaimBlocksInUse));
@@ -261,9 +330,14 @@ public class Claim implements CommandExecutor {
 						}
 						break;
 					case "nearbyclaims":
+					case "nearby":
 						if (args.length >= 2 && args[1] != null) {
 							if(args[1].matches("[1-9]\\d*")) {
-								claimService.getNearbyClaims(player, Integer.parseInt(args[1]), regionManager);
+								if(Integer.parseInt(args[1]) <= 50) {
+									claimService.getNearbyClaims(player, Integer.parseInt(args[1]), regionManager);
+								} else {
+									player.sendMessage(Configuration.PREFIX + "Radius must be 50 blocks or less!");
+								}
 							}
 							else {
 								player.sendMessage(Configuration.PREFIX + "Radius must be a number!");
@@ -271,7 +345,12 @@ public class Claim implements CommandExecutor {
 							return true;
 						}
 						break;
+					default:
+						helpMessage(player);
+						break;
 				}
+			} else {
+				helpMessage(player);
 			}
 		}
 		return true;

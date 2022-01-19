@@ -24,13 +24,15 @@ public class ClientServiceImpl implements ClientService {
 	@Override
 	public void displayClaimBorder(final Player player, final ProtectedRegion region) {
 		final int minX = region.getMinimumPoint().getBlockX();
+		final int minY = region.getMinimumPoint().getBlockY();
 		final int minZ = region.getMinimumPoint().getBlockZ();
 		final int maxX = region.getMaximumPoint().getBlockX();
+		final int maxY = region.getMaximumPoint().getBlockY();
 		final int maxZ = region.getMaximumPoint().getBlockZ();
 
 		CuboidArea cuboid = new CuboidArea(
-				new Location(player.getWorld(), minX, 0, minZ),
-				new Location(player.getWorld(), maxX+1,255, maxZ+1));
+				new Location(player.getWorld(), minX, minY, minZ),
+				new Location(player.getWorld(), maxX+1,maxY+1, maxZ+1));
 		svVisualCuboid newCuboid = new svVisualCuboid(player, cuboid, AreaType.WORLDGUARD) {
 			@Override
 			public void onUpdateEvent() {
@@ -41,8 +43,6 @@ public class ClientServiceImpl implements ClientService {
 				}
 			}
 		};
-		newCuboid.addHiddenSide(CuboidSide.Bottom);
-		newCuboid.addHiddenSide(CuboidSide.Top);
 		newCuboid.addUpdateType(svUpdateType.move4blocks);
 		newCuboid.startRender();
 	}
@@ -74,6 +74,7 @@ public class ClientServiceImpl implements ClientService {
 	public void removePlayerNoSkyBedrock(final Player player) {
 		noSkyBedrock.remove(player.getUniqueId());
 	}
+
 	@Override
 	public Boolean getPlayerNoSkyBedrock(final Player player) {
 		if(noSkyBedrock.containsKey(player.getUniqueId())) {

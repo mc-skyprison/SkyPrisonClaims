@@ -2,13 +2,22 @@ package net.skyprison.skyprisonclaims.services;
 
 import com.sk89q.worldedit.regions.RegionSelector;
 import com.sk89q.worldguard.protection.managers.RegionManager;
+import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+
+import java.util.HashMap;
+import java.util.UUID;
 
 public interface ClaimService {
 
+	HashMap<UUID, UUID> transferRequest();
+	
 	boolean createClaim(Player player, String claimName, RegionManager regionManager, RegionSelector regionSelector);
 
-	void removeClaim(final Player player, final String claimName, final RegionManager regionManager);
+	boolean removeClaim(final Player player, final String claimName, final RegionManager regionManager);
+
+	void entryPlayer(final Player player, final OfflinePlayer entryPlayer, final RegionManager regionManager);
 
 	void listPlayerClaims(Player player, RegionManager regionManager);
 
@@ -20,19 +29,17 @@ public interface ClaimService {
 
 	void removeMember(Player player, String member, RegionManager regionManager);
 
-	void createFlagGUI(Player player);
+	void createFlagGUI(Player player, ProtectedRegion region);
 
 	void addAdmin(Player player, String owner, RegionManager regionManager);
 
 	void removeAdmin(Player player, String owner, RegionManager regionManager);
 
-	void transferOwner(Player player, String owner, RegionManager regionManager);
+	void transferOwner(Player player, String claimName, String owner, RegionManager regionManager);
+
+	void transferConfirm(Player player, String claimName, Player user, RegionManager regionManager, long totalClaimVolume);
 
 	void setGUIFlag(Player player,String flagName, String flagValue);
-
-	boolean setFlag(Player player, String claimName, String flagName, String flagValue, RegionManager regionManager);
-
-	boolean removeFlag(Player player, String claimName, String flagName, RegionManager regionManager);
 
 	boolean expandClaim(Player player, int amount, RegionManager regionManager);
 

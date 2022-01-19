@@ -2,6 +2,7 @@ package net.skyprison.skyprisonclaims.commands;
 
 import com.Zrips.CMI.CMI;
 import com.Zrips.CMI.Containers.CMIUser;
+import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import net.skyprison.skyprisonclaims.SkyPrisonClaims;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
@@ -60,6 +61,39 @@ public class ClaimAdmin implements CommandExecutor {
 
 						}
 						break;
+/*					case "migrate":
+						File playerFolder = new File(plugin.getDataFolder() + File.separator + "players");
+						File[] playerFiles = playerFolder.listFiles();
+
+						for(File playerFile : playerFiles) {
+							FileConfiguration conf = YamlConfiguration.loadConfiguration(playerFile);
+							if(conf.isConfigurationSection("player.claims")) {
+								Set<String> pClaims = conf.getConfigurationSection("player.claims").getKeys(false);
+								for (String pClaim : pClaims) {
+									conf.set("player.claims." + pClaim + ".world", "world_free");
+									if(regionContainer.get(BukkitAdapter.adapt(Bukkit.getWorld("world_free"))).getRegion(pClaim) != null) {
+										ProtectedRegion region = regionContainer.get(BukkitAdapter.adapt(Bukkit.getWorld("world_free"))).getRegion(pClaim);
+										if (region.getParent() != null) {
+											ProtectedRegion parent = region.getParent();
+											ArrayList<String> childClaims;
+											if (!conf.getStringList("player.claims." + parent.getId() + ".children").isEmpty()) {
+												childClaims = (ArrayList<String>) conf.getStringList("player.claims." + parent.getId() + ".children");
+											} else {
+												childClaims = new ArrayList<>();
+											}
+											childClaims.add(region.getId());
+											conf.set("player.claims." + parent.getId() + ".children", childClaims);
+										}
+									}
+								}
+								try {
+									conf.save(playerFile);
+								} catch (IOException e) {
+									e.printStackTrace();
+								}
+							}
+						}
+						break;*/
 					case "claimblocks":
 						if(args.length > 1) {
 							if(args.length > 2) {

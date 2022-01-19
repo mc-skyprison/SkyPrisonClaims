@@ -1,12 +1,13 @@
 package net.skyprison.skyprisonclaims.services;
 
-import com.google.common.collect.Lists;
+import com.Zrips.CMI.CMI;
 import com.google.common.collect.Maps;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.regions.Polygonal2DRegion;
 import com.sk89q.worldedit.regions.RegionSelector;
+import com.sk89q.worldedit.world.weather.WeatherTypes;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.domains.DefaultDomain;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
@@ -18,9 +19,13 @@ import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedPolygonalRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.skyprison.skyprisonclaims.SkyPrisonClaims;
+import org.bukkit.*;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -29,17 +34,22 @@ import net.skyprison.skyprisonclaims.utils.Configuration;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
 import java.util.List;
 
 public class ClaimServiceImpl implements ClaimService {
 
+	HashMap<UUID, UUID> transferRequest = new HashMap<>();
+
 	private final FileService FileService;
 	private final ClientService clientService;
-	public ClaimServiceImpl(final FileService FileService, final ClientService clientService) {
+	private final SkyPrisonClaims plugin;
+	public ClaimServiceImpl(final FileService FileService, final ClientService clientService, final SkyPrisonClaims plugin) {
 		this.FileService = FileService;
 		this.clientService = clientService;
+		this.plugin = plugin;
 	}
 
 	@Override
@@ -58,7 +68,7 @@ public class ClaimServiceImpl implements ClaimService {
 				if (clientService.getPlayerNoSkyBedrock(player)) {
 					overLapCheck = new ProtectedPolygonalRegion(player.getUniqueId().toString(), regionSel.getPoints(), regionSelector.getRegion().getMinimumPoint().getBlockY(), regionSelector.getRegion().getMaximumPoint().getBlockY());
 				} else {
-					overLapCheck = new ProtectedPolygonalRegion(player.getUniqueId().toString(), regionSel.getPoints(), 0, 255);
+					overLapCheck = new ProtectedPolygonalRegion(player.getUniqueId().toString(), regionSel.getPoints(), -64, 319);
 				}
 
 				final List<ProtectedRegion> overlap = overLapCheck.getIntersectingRegions(regionManager.getRegions().values());
@@ -94,6 +104,14 @@ public class ClaimServiceImpl implements ClaimService {
 							region.setParent(parentRegion);
 							region.setPriority(2);
 							region.setFlags(parentRegion.getFlags());
+							ArrayList<String> childClaims;
+							if (!playerConfig.getStringList("player.claims." + parentRegion.getId() + ".children").isEmpty()) {
+								childClaims = (ArrayList<String>) playerConfig.getStringList("player.claims." + parentRegion.getId() + ".children");
+							} else {
+								childClaims = new ArrayList<>();
+							}
+							childClaims.add(region.getId());
+							playerConfig.set("player.claims." + parentRegion.getId() + ".children", childClaims);
 						} else {
 							if (overlapingClaims.size() != 0) {
 								player.sendMessage(Configuration.PREFIX + "Claim is overlaping with another claim!");
@@ -112,27 +130,35 @@ public class ClaimServiceImpl implements ClaimService {
 								final Map<Flag<?>, Object> map = Maps.newHashMap();
 								map.put(Flags.PVP, StateFlag.State.DENY);
 								map.put(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
+								map.put(Flags.ENDER_BUILD, StateFlag.State.DENY);
 								region.setFlags(map);
 								player.sendMessage(Configuration.PREFIX + "Claim " + region.getId().split("_" + player.getUniqueId() + "_")[1] + " created!");
-								final List<String> claims = playerConfig.getStringList("player.claims");
-								claims.add("claim_" + player.getUniqueId() + "_" + claimName);
-								playerConfig.set("player.claims", claims);
+								playerConfig.set("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".permitted-entry", new ArrayList<>());
 								playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse + regionSize);
+								playerConfig.set("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".world", player.getWorld().getName());
 								FileService.saveToFile(playerConfig, player);
 							} else
 								player.sendMessage(Configuration.PREFIX + "Not enough claimblocks! You need " + ((totalClaimBlocksInUse + regionSize) - totalClaimBlocks) + " blocks more!");
 						} else
 							player.sendMessage(Configuration.PREFIX + "Claim not big enough! Claims must be atleast 6x6 blocks wide.");
 					} else {
-						final ProtectedRegion region = new ProtectedPolygonalRegion("claim_" + player.getUniqueId() + "_" + claimName, regionSel.getPoints(), 0, 255);
+						final ProtectedRegion region = new ProtectedPolygonalRegion("claim_" + player.getUniqueId() + "_" + claimName, regionSel.getPoints(), -64, 319);
 						final List<ProtectedRegion> overlapingClaims = region.getIntersectingRegions(regionManager.getRegions().values());
 						if (parentRegion != null) {
 							region.setParent(parentRegion);
 							region.setPriority(2);
 							region.setFlags(parentRegion.getFlags());
+							ArrayList<String> childClaims;
+							if (!playerConfig.getStringList("player.claims." + parentRegion.getId() + ".children").isEmpty()) {
+								childClaims = (ArrayList<String>) playerConfig.getStringList("player.claims." + parentRegion.getId() + ".children");
+							} else {
+								childClaims = new ArrayList<>();
+							}
+							childClaims.add(region.getId());
+							playerConfig.set("player.claims." + parentRegion.getId() + ".children", childClaims);
 						} else {
 							if (overlapingClaims.size() != 0) {
-								player.sendMessage(Configuration.PREFIX + "Claim is overlaping with another claim!");
+								player.sendMessage(Configuration.PREFIX + "Claim is overlapping with another claim!");
 								return false;
 							}
 							region.setPriority(1);
@@ -149,12 +175,12 @@ public class ClaimServiceImpl implements ClaimService {
 								final Map<Flag<?>, Object> map = Maps.newHashMap();
 								map.put(Flags.PVP, StateFlag.State.DENY);
 								map.put(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
+								map.put(Flags.ENDER_BUILD, StateFlag.State.DENY);
 								region.setFlags(map);
 								player.sendMessage(Configuration.PREFIX + "Claim " + region.getId().split("_" + player.getUniqueId() + "_")[1] + " created!");
-								final List<String> claims = playerConfig.getStringList("player.claims");
-								claims.add("claim_" + player.getUniqueId() + "_" + claimName);
-								playerConfig.set("player.claims", claims);
-								playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse + (regionSize / 256));
+								playerConfig.set("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".permitted-entry", new ArrayList<>());
+								playerConfig.set("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".world", player.getWorld().getName());
+								playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse + regionSize);
 								FileService.saveToFile(playerConfig, player);
 							} else
 								player.sendMessage(Configuration.PREFIX + "Not enough claimblocks! You need " + ((totalClaimBlocksInUse + regionSize) - totalClaimBlocks) + " blocks more!");
@@ -175,7 +201,7 @@ public class ClaimServiceImpl implements ClaimService {
 							BlockVector3.at(p1.getBlockX(), p1.getBlockY(), p1.getBlockZ()), BlockVector3.at(p2.getBlockX(), p2.getBlockY(), p2.getBlockZ()));
 				} else {
 					overLapCheck = new ProtectedCuboidRegion(player.getUniqueId().toString(),
-							BlockVector3.at(p1.getBlockX(), 0, p1.getBlockZ()), BlockVector3.at(p2.getBlockX(), 255, p2.getBlockZ()));
+							BlockVector3.at(p1.getBlockX(), -64, p1.getBlockZ()), BlockVector3.at(p2.getBlockX(), 319, p2.getBlockZ()));
 				}
 
 				final List<ProtectedRegion> overlap = overLapCheck.getIntersectingRegions(regionManager.getRegions().values());
@@ -212,6 +238,14 @@ public class ClaimServiceImpl implements ClaimService {
 							region.setParent(parentRegion);
 							region.setPriority(2);
 							region.setFlags(parentRegion.getFlags());
+							ArrayList<String> childClaims;
+							if (!playerConfig.getStringList("player.claims." + parentRegion.getId() + ".children").isEmpty()) {
+								childClaims = (ArrayList<String>) playerConfig.getStringList("player.claims." + parentRegion.getId() + ".children");
+							} else {
+								childClaims = new ArrayList<>();
+							}
+							childClaims.add(region.getId());
+							playerConfig.set("player.claims." + parentRegion.getId() + ".children", childClaims);
 						} else {
 							if (overlapingClaims.size() != 0) {
 								player.sendMessage(Configuration.PREFIX + "Claim is overlaping with another claim!");
@@ -230,11 +264,11 @@ public class ClaimServiceImpl implements ClaimService {
 								final Map<Flag<?>, Object> map = Maps.newHashMap();
 								map.put(Flags.PVP, StateFlag.State.DENY);
 								map.put(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
+								map.put(Flags.ENDER_BUILD, StateFlag.State.DENY);
 								region.setFlags(map);
 								player.sendMessage(Configuration.PREFIX + "Claim " + region.getId().split("_" + player.getUniqueId() + "_")[1] + " created!");
-								final List<String> claims = playerConfig.getStringList("player.claims");
-								claims.add("claim_" + player.getUniqueId() + "_" + claimName);
-								playerConfig.set("player.claims", claims);
+								playerConfig.set("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".permitted-entry", new ArrayList<>());
+								playerConfig.set("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".world", player.getWorld().getName());
 								playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse + regionSize);
 								FileService.saveToFile(playerConfig, player);
 							} else
@@ -243,12 +277,20 @@ public class ClaimServiceImpl implements ClaimService {
 							player.sendMessage(Configuration.PREFIX + "Claim not big enough! Claims must be atleast 6x6 blocks wide.");
 					} else {
 						final ProtectedRegion region = new ProtectedCuboidRegion("claim_" + player.getUniqueId() + "_" + claimName,
-								BlockVector3.at(p1.getBlockX(), 0, p1.getBlockZ()), BlockVector3.at(p2.getBlockX(), 255, p2.getBlockZ()));
+								BlockVector3.at(p1.getBlockX(), -64, p1.getBlockZ()), BlockVector3.at(p2.getBlockX(), 319, p2.getBlockZ()));
 						final List<ProtectedRegion> overlapingClaims = region.getIntersectingRegions(regionManager.getRegions().values());
 						if (parentRegion != null) {
 							region.setParent(parentRegion);
 							region.setPriority(2);
 							region.setFlags(parentRegion.getFlags());
+							ArrayList<String> childClaims;
+							if (!playerConfig.getStringList("player.claims." + parentRegion.getId() + ".children").isEmpty()) {
+								childClaims = (ArrayList<String>) playerConfig.getStringList("player.claims." + parentRegion.getId() + ".children");
+							} else {
+								childClaims = new ArrayList<>();
+							}
+							childClaims.add(region.getId());
+							playerConfig.set("player.claims." + parentRegion.getId() + ".children", childClaims);
 						} else {
 							if (overlapingClaims.size() != 0) {
 								player.sendMessage(Configuration.PREFIX + "Claim is overlaping with another claim!");
@@ -256,7 +298,7 @@ public class ClaimServiceImpl implements ClaimService {
 							}
 							region.setPriority(1);
 						}
-						final int regionSize = region.volume() / 256;
+						final int regionSize = region.volume() / 384;
 						if ((p2.getX() - p1.getX() >= 5) && (p2.getZ() - p1.getZ() >= 5)) {
 							if (totalClaimBlocksInUse + regionSize <= totalClaimBlocks) {
 								regionManager.addRegion(region);
@@ -266,12 +308,12 @@ public class ClaimServiceImpl implements ClaimService {
 								final Map<Flag<?>, Object> map = Maps.newHashMap();
 								map.put(Flags.PVP, StateFlag.State.DENY);
 								map.put(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
+								map.put(Flags.ENDER_BUILD, StateFlag.State.DENY);
 								region.setFlags(map);
 								player.sendMessage(Configuration.PREFIX + "Claim " + region.getId().split("_" + player.getUniqueId() + "_")[1] + " created!");
-								final List<String> claims = playerConfig.getStringList("player.claims");
-								claims.add("claim_" + player.getUniqueId() + "_" + claimName);
-								playerConfig.set("player.claims", claims);
-								playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse + (region.volume() / 256));
+								playerConfig.set("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".permitted-entry", new ArrayList<>());
+								playerConfig.set("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".world", player.getWorld().getName());
+								playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse + (region.volume() / 384));
 								FileService.saveToFile(playerConfig, player);
 							} else
 								player.sendMessage(Configuration.PREFIX + "Not enough claimblocks! You need " + ((totalClaimBlocksInUse + regionSize) - totalClaimBlocks) + " blocks more!");
@@ -287,72 +329,157 @@ public class ClaimServiceImpl implements ClaimService {
 		return false;
 	}
 
-		@Override
-	public void removeClaim(final Player player, final String claimName, final RegionManager regionManager) {
-		if (regionManager.getRegion("claim_" + player.getUniqueId() + "_" + claimName) != null) {
+	@Override
+	public boolean removeClaim(final Player player, final String claimName, final RegionManager regionManager) {
+		String claimId = "claim_" + player.getUniqueId() + "_" + claimName;
+		if (regionManager.getRegion(claimId) != null) {
 			final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(player));
 			final int totalClaimBlocksInUse = playerConfig.getInt("player.totalClaimBlocksInUse");
 			playerConfig.set("player.name", player.getName());
 			int childClaimsVolume = 0;
-			for(final ProtectedRegion region : regionManager.getRegions().values()) {
-				if (region.getParent() != null && region.getParent().getId().equalsIgnoreCase("claim_" + player.getUniqueId() + "_" + claimName)) {
-					CuboidRegion regionVol = new CuboidRegion(BukkitAdapter.adapt(player.getWorld()),
-							BlockVector3.at(region.getMinimumPoint().getBlockX(), 0, region.getMinimumPoint().getBlockZ()),
-							BlockVector3.at(region.getMaximumPoint().getBlockX(), 255, region.getMaximumPoint().getBlockZ()));
-					childClaimsVolume += regionVol.getVolume() / 256;
+			for (final ProtectedRegion region : regionManager.getRegions().values()) {
+				if (region.getParent() != null && region.getParent().getId().equalsIgnoreCase(claimId)) {
+					if(region instanceof ProtectedCuboidRegion) {
+						CuboidRegion regionVol = new CuboidRegion(BukkitAdapter.adapt(player.getWorld()),
+								BlockVector3.at(region.getMinimumPoint().getBlockX(), 1, region.getMinimumPoint().getBlockZ()),
+								BlockVector3.at(region.getMaximumPoint().getBlockX(), 1, region.getMaximumPoint().getBlockZ()));
+						childClaimsVolume += regionVol.getVolume();
+					} else {
+						Polygonal2DRegion regionVol = new Polygonal2DRegion(BukkitAdapter.adapt(player.getWorld()), region.getPoints(), 1, 1);
+						childClaimsVolume += regionVol.getVolume();
+					}
 				}
 			}
-			final List<String> claims = playerConfig.getStringList("player.claims");
-			final ProtectedRegion region = regionManager.getRegion("claim_" + player.getUniqueId() + "_" + claimName);
-			claims.remove("claim_" + player.getUniqueId() + "_" + claimName);
-			playerConfig.set("player.claims", claims);
-			assert region != null;
-			CuboidRegion regionVol = new CuboidRegion(BukkitAdapter.adapt(player.getWorld()),
-					BlockVector3.at(region.getMinimumPoint().getBlockX(), 0, region.getMinimumPoint().getBlockZ()),
-					BlockVector3.at(region.getMaximumPoint().getBlockX(), 255, region.getMaximumPoint().getBlockZ()));
-			playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse - childClaimsVolume - (regionVol.getVolume() / 256));
+			final ProtectedRegion region = regionManager.getRegion(claimId);
+			if (region instanceof ProtectedCuboidRegion) {
+				CuboidRegion regionVol = new CuboidRegion(BukkitAdapter.adapt(player.getWorld()),
+						BlockVector3.at(region.getMinimumPoint().getBlockX(), 1, region.getMinimumPoint().getBlockZ()),
+						BlockVector3.at(region.getMaximumPoint().getBlockX(), 1, region.getMaximumPoint().getBlockZ()));
+				playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse - childClaimsVolume - regionVol.getVolume());
+			} else {
+				Polygonal2DRegion regionVol = new Polygonal2DRegion(BukkitAdapter.adapt(player.getWorld()), region.getPoints(), 1, 1);
+				playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse - childClaimsVolume - regionVol.getVolume());
+			}
+
+			if(!playerConfig.getStringList("player.claims." + claimId + ".children").isEmpty()) {
+				ArrayList<String> childClaims = (ArrayList<String>) playerConfig.getStringList("player.claims." + claimId + ".children");
+				for(String childClaim : childClaims) {
+					playerConfig.set("player.claims." + childClaim, null);
+				}
+			}
+			playerConfig.set("player.claims." + claimId, null);
 			FileService.saveToFile(playerConfig, player);
-			regionManager.removeRegion("claim_" + player.getUniqueId() + "_" + claimName);
-			player.sendMessage(Configuration.PREFIX + "Claim " + claimName + " has been removed!");
+			regionManager.removeRegion(claimId);
+			return true;
 		} else {
-			player.sendMessage(Configuration.PREFIX + "No claim with the name " + claimName + "found! ");
+			return false;
 		}
 	}
 
 	@Override
+	public void entryPlayer(final Player player, final OfflinePlayer entryPlayer, final RegionManager regionManager) {
+		int highestPrior = 0;
+		ProtectedRegion pRegion = null;
+		final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
+				player.getLocation().getY(), player.getLocation().getZ()));
+		if(!regionList.getRegions().isEmpty()) {
+			for (final ProtectedRegion region : regionList) {
+				if (region.getId().startsWith("claim_")) {
+					if (region.getPriority() > highestPrior) {
+						highestPrior = region.getPriority();
+						pRegion = region;
+					}
+				}
+			}
+			if(pRegion != null) {
+				if (pRegion.getOwners().contains(player.getName()) || pRegion.getOwners().contains(player.getUniqueId())) {
+					if(!pRegion.getOwners().contains(entryPlayer.getName()) && !pRegion.getOwners().contains(entryPlayer.getUniqueId()) && !pRegion.getMembers().contains(entryPlayer.getName()) && !pRegion.getMembers().contains(entryPlayer.getUniqueId())) {
+						String[] rName = pRegion.getId().split("_");
+						OfflinePlayer owner = CMI.getInstance().getPlayerManager().getUser(UUID.fromString(rName[1])).getOfflinePlayer();
+						final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(owner));
+
+						List<String> permittedPlayers = playerConfig.getStringList("player.claims." + pRegion.getId() + ".permitted-entry");
+
+						if (permittedPlayers.contains(entryPlayer.getUniqueId().toString())) {
+							permittedPlayers.remove(entryPlayer.getUniqueId().toString());
+							player.sendMessage(Configuration.PREFIX + entryPlayer.getName() + " can no longer enter your claim!");
+						} else {
+							permittedPlayers.add(entryPlayer.getUniqueId().toString());
+							player.sendMessage(Configuration.PREFIX + entryPlayer.getName() + " can now enter your claim!");
+						}
+						playerConfig.set("player.claims." + pRegion.getId() + ".permitted-entry", permittedPlayers);
+						FileService.saveToFile(playerConfig, owner);
+					} else {
+						player.sendMessage(Configuration.PREFIX + "This player can already enter your claim as they are a member!");
+					}
+				} else {
+					player.sendMessage(Configuration.PREFIX + "You are not an admin of this claim!");
+				}
+			} else {
+				player.sendMessage(Configuration.PREFIX + "There is no claim here!");
+			}
+		} else {
+			player.sendMessage(Configuration.PREFIX + "There is no claim here!");
+		}
+	}
+
+
+
+	@Override
 	public void listPlayerClaims(final Player player, final RegionManager regionManager) {
-		final List <String> claims = Lists.newArrayList();
 		player.sendMessage(Configuration.PREFIX + "Your claims:");
 		for (final ProtectedRegion region : regionManager.getRegions().values()) {
 			if (region.getId().contains("claim_" + player.getUniqueId())) {
-				claims.add(region.getId());
 				player.sendMessage(Configuration.PREFIX + "Claim: " + region.getId().split(player.getUniqueId() + "_")[1] +
-						": x:" + region.getMinimumPoint().getX() + ", z:" + region.getMinimumPoint().getZ() + " (" + region.volume() / 256 + " blocks)");
+						": x:" + region.getMinimumPoint().getX() + ", z:" + region.getMinimumPoint().getZ() + " (" + region.volume() / 384 + " blocks)");
 			}
 		}
 		final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(player));
-		playerConfig.set("player.claims", claims);
 		FileService.saveToFile(playerConfig, player);
+	}
+
+	private void sendClaimInfo(Player player, ProtectedRegion region) {
+		player.sendMessage(ChatColor.GOLD + "---=== Claim information ===---");
+		player.sendMessage(ChatColor.YELLOW + "Claim name: " + region.getId().substring(43));
 	}
 
 	@Override
 	public void getClaimInfoById(final Player player, final String claimId, final RegionManager regionManager) {
-		final ProtectedRegion region = regionManager.getRegions().get("claim_"+player.getUniqueId()+"_"+claimId);
+		final ProtectedRegion region = regionManager.getRegions().get("claim_" + player.getUniqueId() + "_" + claimId);
 		if (region != null && (region.getOwners().contains(player.getName()) || (region.getOwners().contains(player.getUniqueId())))) {
-			player.sendMessage(Configuration.PREFIX + "Claim information:");
-			player.sendMessage(ChatColor.YELLOW + "Claim id: " + region.getId().split("_" + player.getUniqueId() + "_")[1]);
+			player.sendMessage(ChatColor.GOLD + "---=== Claim information ===---");
+			player.sendMessage(ChatColor.YELLOW + "Claim name: " + region.getId().substring(43));
 			if(region.getParent() != null)
-				player.sendMessage(ChatColor.YELLOW + "Claim parent: " + region.getParent().getId().split("_" + player.getUniqueId() + "_")[1]);
+				player.sendMessage(ChatColor.YELLOW + "Claim parent: " + region.getParent().getId().substring(43));
 			player.sendMessage(ChatColor.YELLOW + "Claim coords: " + region.getMinimumPoint() + " - " + region.getMaximumPoint());
-			StringBuilder tmp = new StringBuilder();
-			final Map<Flag<?>, Object> map = region.getFlags();
-			for (final Flag<?> flag : region.getFlags().keySet()) {
-				map.get(flag);
-				tmp.append(flag.getName()).append(": ").append(map.get(flag)).append("; ");
+			player.sendMessage(ChatColor.YELLOW + "Claim owner: " + player.getName());
+			StringBuilder admins = new StringBuilder();
+			Iterator<String> owners = region.getOwners().getPlayers().iterator();
+			while(owners.hasNext()) {
+				String owner = owners.next();
+				if(!owner.equalsIgnoreCase(player.getName())) {
+					admins.append(owner);
+					if (owners.hasNext()) {
+						admins.append(", ");
+					}
+				}
 			}
-			player.sendMessage(ChatColor.YELLOW + "Claim flags: " + tmp);
-			player.sendMessage(ChatColor.YELLOW + "Claim owner(s): " + region.getOwners().getPlayers());
-			player.sendMessage(ChatColor.YELLOW + "Claim member(s): " + region.getMembers().getPlayers());
+			StringBuilder members = new StringBuilder();
+			Iterator<String> iMembers = region.getMembers().getPlayers().iterator();
+			while(iMembers.hasNext()) {
+				String member = iMembers.next();
+				if(!region.getOwners().getPlayers().contains(member)) {
+					members.append(member);
+					if (iMembers.hasNext()) {
+						members.append(", ");
+					}
+				}
+			}
+			player.sendMessage(ChatColor.YELLOW + "Claim admin(s): " + admins);
+			player.sendMessage(ChatColor.YELLOW + "Claim member(s): " + members);
+			player.sendMessage("");
+			TextComponent flagText = Component.text("VIEW CLAIM FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags"));
+			player.sendMessage(flagText);
 		} else
 			player.sendMessage(Configuration.PREFIX + "Could not find a claim with that name!");
 	}
@@ -361,26 +488,56 @@ public class ClaimServiceImpl implements ClaimService {
 	@Override
 	public void getClaimInfoFromPlayerPosition(final Player player, final RegionManager regionManager) {
 		final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(player.getLocation().getX(), player.getLocation().getY(), player.getLocation().getZ()));
-		if(!regionList.getRegions().isEmpty())
+		if(!regionList.getRegions().isEmpty()) {
+			int highestPrior = 0;
+			ProtectedRegion pRegion = null;
 			for (final ProtectedRegion region : regionList) {
 				if (region.getId().startsWith("claim_")) {
-					player.sendMessage(Configuration.PREFIX + "Claim information:");
-					player.sendMessage(ChatColor.YELLOW + "Claim id: " + region.getId().substring(43));
-					if (region.getParent() != null)
-						player.sendMessage(ChatColor.YELLOW + "Claim parent: " + region.getParent().getId().split("_" + player.getUniqueId() + "_")[1]);
-					player.sendMessage(ChatColor.YELLOW + "Claim coords: " + region.getMinimumPoint() + " - " + region.getMaximumPoint());
-					StringBuilder tmp = new StringBuilder();
-					final Map<Flag<?>, Object> map = region.getFlags();
-					for (final Flag<?> flag : region.getFlags().keySet()) {
-						map.get(flag);
-						tmp.append(flag.getName()).append(": ").append(map.get(flag)).append("; ");
+					if (region.getPriority() > highestPrior) {
+						highestPrior = region.getPriority();
+						pRegion = region;
 					}
-					player.sendMessage(ChatColor.YELLOW + "Claim flags: " + tmp);
-					player.sendMessage(ChatColor.YELLOW + "Claim owner(s): " + region.getOwners().getPlayers());
-					player.sendMessage(ChatColor.YELLOW + "Claim member(s): " + region.getMembers().getPlayers());
 				}
 			}
-		else
+			if(pRegion != null) {
+				player.sendMessage(ChatColor.GOLD + "---=== Claim information ===---");
+				player.sendMessage(ChatColor.YELLOW + "Claim name: " + pRegion.getId().substring(43));
+				if (pRegion.getParent() != null)
+					player.sendMessage(ChatColor.YELLOW + "Claim parent: " + pRegion.getParent().getId().substring(43));
+				player.sendMessage(ChatColor.YELLOW + "Claim coords: " + pRegion.getMinimumPoint() + " - " + pRegion.getMaximumPoint());
+				String[] regionId = pRegion.getId().split("_");
+				OfflinePlayer claimOwner = Bukkit.getOfflinePlayer(UUID.fromString(regionId[1]));
+				assert claimOwner != null;
+				player.sendMessage(ChatColor.YELLOW + "Claim owner: " + claimOwner.getName());
+				StringBuilder admins = new StringBuilder();
+				Iterator<String> owners = pRegion.getOwners().getPlayers().iterator();
+				while (owners.hasNext()) {
+					String owner = owners.next();
+					if (!owner.equalsIgnoreCase(claimOwner.getName())) {
+						admins.append(owner);
+						if (owners.hasNext()) {
+							admins.append(", ");
+						}
+					}
+				}
+				StringBuilder members = new StringBuilder();
+				Iterator<String> iMembers = pRegion.getMembers().getPlayers().iterator();
+				while (iMembers.hasNext()) {
+					String member = iMembers.next();
+					if (!pRegion.getOwners().getPlayers().contains(member)) {
+						members.append(member);
+						if (iMembers.hasNext()) {
+							members.append(", ");
+						}
+					}
+				}
+				player.sendMessage(ChatColor.YELLOW + "Claim admin(s): " + admins);
+				player.sendMessage(ChatColor.YELLOW + "Claim member(s): " + members);
+				player.sendMessage("");
+				TextComponent flagText = Component.text("VIEW CLAIM FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags"));
+				player.sendMessage(flagText);
+			}
+		} else
 			player.sendMessage(Configuration.PREFIX + "No claim here.");
 	}
 
@@ -404,7 +561,7 @@ public class ClaimServiceImpl implements ClaimService {
 					pRegion.getMembers().addPlayer(member);
 					player.sendMessage(Configuration.PREFIX + "Added " + member + " to the claim!");
 				} else {
-					player.sendMessage(Configuration.PREFIX + "You are not an owner of this claim!");
+					player.sendMessage(Configuration.PREFIX + "You are not an admin of this claim!");
 				}
 			} else {
 				player.sendMessage(Configuration.PREFIX + "There is no claim here!");
@@ -465,7 +622,7 @@ public class ClaimServiceImpl implements ClaimService {
 				Player claimOwner = Bukkit.getPlayer(UUID.fromString(regionName[1]));
 				if (player.equals(claimOwner)) {
 					pRegion.getOwners().addPlayer(owner);
-					player.sendMessage(Configuration.PREFIX + "Added " + owner + " as an owner!");
+					player.sendMessage(Configuration.PREFIX + "Added " + owner + " as an admin!");
 				} else {
 					player.sendMessage(Configuration.PREFIX + "You are not the creator of this claim!");
 				}
@@ -497,7 +654,7 @@ public class ClaimServiceImpl implements ClaimService {
 				Player claimOwner = Bukkit.getPlayer(UUID.fromString(regionName[1]));
 				if (player.equals(claimOwner)) {
 					pRegion.getOwners().removePlayer(owner);
-					player.sendMessage(Configuration.PREFIX + "Removed " + owner + " as an owner!");
+					player.sendMessage(Configuration.PREFIX + "Removed " + owner + " as an admin!");
 				} else {
 					player.sendMessage(Configuration.PREFIX + "You are not the creator of this claim!");
 				}
@@ -509,711 +666,817 @@ public class ClaimServiceImpl implements ClaimService {
 		}
 	}
 
-	@Override
-	public void transferOwner(final Player player, final String owner, final RegionManager regionManager) {
-		if(Bukkit.getPlayer(owner) != null) {
-			final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
-					player.getLocation().getY(), player.getLocation().getZ()));
-			ArrayList<ProtectedRegion> pRegions = new ArrayList<>();
-			boolean isOwner = false;
-			if (!regionList.getRegions().isEmpty()) {
-				for (final ProtectedRegion region : regionList) {
-					if (region.getId().startsWith("claim_")) {
-						String[] regionName = region.getId().split("_");
-						Player claimOwner = Bukkit.getPlayer(UUID.fromString(regionName[1]));
-						if(player.equals(claimOwner)) {
-							pRegions.add(region);
-							isOwner = true;
+	public void transferConfirm(final Player player, String claimName, final Player user, final RegionManager regionManager, final long totalClaimVolume) {
+		String origiName = claimName;
+		String claimId = "claim_" + player.getUniqueId() + "_" + origiName;
+		final ProtectedRegion region = regionManager.getRegion(claimId);
+		final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(player));
+		final FileConfiguration newPlayerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(user));
+		final int newTotalClaimBlocksInUse = newPlayerConfig.getInt("player.totalClaimBlocksInUse");
+
+		if(newPlayerConfig.contains("player.claims." + "claim_" + user.getUniqueId() + "_" + claimName)) {
+			boolean newName = false;
+			int i = 0;
+			while (!newName) {
+				if(!newPlayerConfig.contains("player.claims." + "claim_" + user.getUniqueId() + "_claim" + i)) {
+					claimName = "claim" + i;
+					newName = true;
+				} else {
+					i++;
+				}
+			}
+		}
+		final ProtectedRegion parentRegion;
+		if (region instanceof ProtectedCuboidRegion) {
+			BlockVector3 p1 = region.getMinimumPoint();
+			BlockVector3 p2 = region.getMaximumPoint();
+			Map<Flag<?>, Object> flags = region.getFlags();
+			DefaultDomain members = region.getMembers();
+			DefaultDomain owners = region.getOwners();
+			parentRegion = new ProtectedCuboidRegion("claim_" + user.getUniqueId() + "_" + claimName,
+					BlockVector3.at(p1.getBlockX(), p1.getBlockY(), p1.getBlockZ()), BlockVector3.at(p2.getBlockX(), p2.getBlockY(), p2.getBlockZ()));
+			regionManager.addRegion(parentRegion);
+			parentRegion.setFlags(flags);
+			parentRegion.setPriority(1);
+			parentRegion.setMembers(members);
+			if (!owners.contains(user.getName()) || !owners.contains(user.getUniqueId())) {
+				owners.addPlayer(user.getName());
+			}
+			parentRegion.setOwners(owners);
+		} else {
+			Map<Flag<?>, Object> flags = region.getFlags();
+			DefaultDomain members = region.getMembers();
+			DefaultDomain owners = region.getOwners();
+			parentRegion = new ProtectedPolygonalRegion("claim_" + user.getUniqueId() + "_" + claimName,
+					region.getPoints(), region.getMinimumPoint().getBlockY(), region.getMaximumPoint().getBlockY());
+			regionManager.addRegion(parentRegion);
+			parentRegion.setPriority(1);
+			parentRegion.setFlags(flags);
+			parentRegion.setMembers(members);
+			if (!owners.contains(user.getName()) || !owners.contains(user.getUniqueId())) {
+				owners.addPlayer(user.getName());
+			}
+			parentRegion.setOwners(owners);
+		}
+
+		newPlayerConfig.set("player.claims." + "claim_" + user.getUniqueId() + "_" + claimName + ".permitted-entry", playerConfig.getStringList("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".permitted-entry"));
+		newPlayerConfig.set("player.claims." + "claim_" + user.getUniqueId() + "_" + claimName + ".world", playerConfig.getString("player.claims." + "claim_" + player.getUniqueId() + "_" + claimName + ".world"));
+
+		if (!playerConfig.getStringList("player.claims." + claimId + ".children").isEmpty()) {
+			ArrayList<String> childClaims = (ArrayList<String>) playerConfig.getStringList("player.claims." + claimId + ".children");
+
+			ArrayList<String> newChildClaims = new ArrayList<>();
+
+			for (String childClaim : childClaims) {
+				String childName = childClaim.substring(43);
+				if(newPlayerConfig.contains("player.claims." + "claim_" + user.getUniqueId() + "_" + childName)) {
+					boolean newChildName = false;
+					int i = 0;
+					while (!newChildName) {
+						if(!newPlayerConfig.contains("player.claims." + "claim_" + user.getUniqueId() + "_claim" + i)) {
+							childName = "claim" + i;
+							newChildName = true;
+						} else {
+							i++;
 						}
 					}
 				}
-				if (!pRegions.isEmpty()) {
-					if(isOwner) {
-						for (ProtectedRegion pRegion : pRegions) {
-							String[] regionID = pRegion.getId().split("_");
-							List<String> regionName = Arrays.asList(regionID);
-							regionName.remove(0);
-							regionName.remove(1);
-							StringBuilder rName = new StringBuilder();
-							for(int i = 0; i < regionName.size(); i++) {
-								if(i != regionName.size()-1) {
-									rName.append(regionName.get(i)).append("_");
-								} else {
-									rName.append(regionName.get(i));
-								}
-							}
-							Player newOwner = Bukkit.getPlayer(owner);
-							BlockVector3 p1 = pRegion.getMinimumPoint();
-							BlockVector3 p2 = pRegion.getMaximumPoint();
-							boolean isChild = pRegion.getParent() != null;
-							Map<Flag<?>, Object> flags = pRegion.getFlags();
-							DefaultDomain members = pRegion.getMembers();
-							DefaultDomain owners = pRegion.getOwners();
-							regionManager.removeRegion(pRegion.getId());
-							assert newOwner != null;
-							final ProtectedRegion region = new ProtectedCuboidRegion("claim_" + newOwner.getUniqueId() + "_" + rName,
-									BlockVector3.at(p1.getBlockX(), p1.getBlockY(), p1.getBlockZ()), BlockVector3.at(p2.getBlockX(), p2.getBlockY(), p2.getBlockZ()));
-							region.setFlags(flags);
-							region.setMembers(members);
-							region.setOwners(owners);
-						}
-					} else {
-						player.sendMessage(Configuration.PREFIX + "You are not the owner of this claim!");
+				newPlayerConfig.set("player.claims." + "claim_" + user.getUniqueId() + "_" + childName + ".permitted-entry", playerConfig.getStringList("player.claims." + childClaim + ".permitted-entry"));
+				newPlayerConfig.set("player.claims." + "claim_" + user.getUniqueId() + "_" + childName + ".world", playerConfig.getString("player.claims." + childClaim + ".world"));
+				newChildClaims.add("claim_" + user.getUniqueId() + "_" + childName);
+				final ProtectedRegion cRegion = regionManager.getRegion(childClaim);
+				if (cRegion instanceof ProtectedCuboidRegion) {
+					BlockVector3 p1 = cRegion.getMinimumPoint();
+					BlockVector3 p2 = cRegion.getMaximumPoint();
+					Map<Flag<?>, Object> flags = cRegion.getFlags();
+					DefaultDomain members = cRegion.getMembers();
+					DefaultDomain owners = cRegion.getOwners();
+					final ProtectedRegion newRegion = new ProtectedCuboidRegion("claim_" + user.getUniqueId() + "_" + childName,
+							BlockVector3.at(p1.getBlockX(), p1.getBlockY(), p1.getBlockZ()), BlockVector3.at(p2.getBlockX(), p2.getBlockY(), p2.getBlockZ()));
+					regionManager.addRegion(newRegion);
+					newRegion.setFlags(flags);
+					newRegion.setPriority(2);
+					newRegion.setMembers(members);
+					if (!owners.contains(user.getName()) || !owners.contains(user.getUniqueId())) {
+						owners.addPlayer(user.getName());
+					}
+					newRegion.setOwners(owners);
+					try {
+						newRegion.setParent(parentRegion);
+					} catch (ProtectedRegion.CircularInheritanceException e) {
+						e.printStackTrace();
 					}
 				} else {
-					player.sendMessage(Configuration.PREFIX + "There is no claim here!");
+					Map<Flag<?>, Object> flags = cRegion.getFlags();
+					DefaultDomain members = cRegion.getMembers();
+					DefaultDomain owners = cRegion.getOwners();
+					final ProtectedRegion newRegion = new ProtectedPolygonalRegion("claim_" + user.getUniqueId() + "_" + childName,
+							cRegion.getPoints(), cRegion.getMinimumPoint().getBlockY(), cRegion.getMaximumPoint().getBlockY());
+					regionManager.addRegion(newRegion);
+					newRegion.setFlags(flags);
+					newRegion.setPriority(2);
+					newRegion.setMembers(members);
+					if (!owners.contains(user.getName()) || !owners.contains(user.getUniqueId())) {
+						owners.addPlayer(user.getName());
+					}
+					newRegion.setOwners(owners);
+					try {
+						newRegion.setParent(parentRegion);
+					} catch (ProtectedRegion.CircularInheritanceException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+
+			newPlayerConfig.set("player.claims." + "claim_" + user.getUniqueId() + "_" + claimName + ".children", newChildClaims);
+			user.sendMessage(Configuration.PREFIX + "You have received the claim " + claimName + " and their child claim(s) from " + player.getName() + "!");
+		} else {
+			user.sendMessage(Configuration.PREFIX + "You have received the claim " + claimName + " from " + player.getName() + "!");
+		}
+
+		newPlayerConfig.set("player.totalClaimBlocksInUse", newTotalClaimBlocksInUse + totalClaimVolume);
+
+		transferRequest.remove(user.getUniqueId());
+
+		FileService.saveToFile(newPlayerConfig, user);
+
+		removeClaim(player, origiName, regionManager);
+		player.sendMessage(Configuration.PREFIX + "Claim " + origiName + " has been transferred to " + user.getName() + "!");
+	}
+
+	@Override
+	public HashMap<UUID, UUID> transferRequest() {
+		return transferRequest;
+	}
+
+	@Override
+	public void transferOwner(final Player player, final String claimName, final String newOwner, final RegionManager regionManager) {
+		String claimId = "claim_" + player.getUniqueId() + "_" + claimName;
+		if (regionManager.getRegion(claimId) != null) {
+			final ProtectedRegion region = regionManager.getRegion(claimId);
+			if(Bukkit.getPlayer(newOwner) != null) {
+				if(region.getParent() == null) {
+					Player user = Bukkit.getPlayer(newOwner);
+					final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(player));
+					final FileConfiguration newPlayerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(user));
+					final int totalClaimBlocksInUse = playerConfig.getInt("player.totalClaimBlocksInUse");
+					final int newTotalClaimBlocksInUse = newPlayerConfig.getInt("player.totalClaimBlocksInUse");
+					final int newTotalClaimBlocks = newPlayerConfig.getInt("player.totalClaimBlocks");
+					int childClaimsVolume = 0;
+					long totalClaimVolume;
+					for (final ProtectedRegion cRegion : regionManager.getRegions().values()) {
+						if (cRegion.getParent() != null && cRegion.getParent().getId().equalsIgnoreCase(claimId)) {
+							if (cRegion instanceof ProtectedCuboidRegion) {
+								CuboidRegion regionVol = new CuboidRegion(BukkitAdapter.adapt(player.getWorld()),
+										BlockVector3.at(cRegion.getMinimumPoint().getBlockX(), 1, cRegion.getMinimumPoint().getBlockZ()),
+										BlockVector3.at(cRegion.getMaximumPoint().getBlockX(), 1, cRegion.getMaximumPoint().getBlockZ()));
+								childClaimsVolume += regionVol.getVolume();
+							} else {
+								Polygonal2DRegion regionVol = new Polygonal2DRegion(BukkitAdapter.adapt(player.getWorld()), cRegion.getPoints(), 1, 1);
+								childClaimsVolume += regionVol.getVolume();
+							}
+						}
+					}
+					if (region instanceof ProtectedCuboidRegion) {
+						CuboidRegion regionVol = new CuboidRegion(BukkitAdapter.adapt(player.getWorld()),
+								BlockVector3.at(region.getMinimumPoint().getBlockX(), 1, region.getMinimumPoint().getBlockZ()),
+								BlockVector3.at(region.getMaximumPoint().getBlockX(), 1, region.getMaximumPoint().getBlockZ()));
+						playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse - childClaimsVolume - regionVol.getVolume());
+						totalClaimVolume = childClaimsVolume + regionVol.getVolume();
+					} else {
+						Polygonal2DRegion regionVol = new Polygonal2DRegion(BukkitAdapter.adapt(player.getWorld()), region.getPoints(), 1, 1);
+						playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse - childClaimsVolume - regionVol.getVolume());
+						totalClaimVolume = childClaimsVolume + regionVol.getVolume();
+					}
+
+					if(newTotalClaimBlocksInUse + totalClaimVolume <= newTotalClaimBlocks) {
+						transferRequest.put(user.getUniqueId(), player.getUniqueId());
+						player.sendMessage(Configuration.PREFIX + "Sent claim transfer request to " + user.getName() + "!");
+						TextComponent confirmText = Component.text(Configuration.PREFIX + player.getName() + " has sent you a transfer request for the claim "
+								+ claimName + " at " + region.getMinimumPoint() + " -> " + region.getMaximumPoint() + "");
+						TextComponent clickText = Component.text("CLICK TO ACCEPT").color(NamedTextColor.GREEN).clickEvent(ClickEvent.runCommand("/claim transfer confirm " + player.getName()
+								+ " " + claimName + " " + user.getName() + " " + player.getWorld().getName() + " " + totalClaimVolume))
+								.append(Component.text("                "))
+								.append(Component.text("CLICK TO DECLINE").color(NamedTextColor.RED).clickEvent(ClickEvent.runCommand("/claim transfer decline")));
+						user.sendMessage(confirmText);
+						user.sendMessage(clickText);
+					} else {
+						player.sendMessage(Configuration.PREFIX + "The player " + user.getName() + " does not have enough claim blocks for this!");
+					}
+				} else {
+					player.sendMessage(Configuration.PREFIX + "Can't transfer child claims to other players!");
 				}
 			} else {
-				player.sendMessage(Configuration.PREFIX + "There is no claim here!");
+				player.sendMessage(Configuration.PREFIX + "No player with the name " + newOwner + " is online!");
 			}
 		} else {
-			player.sendMessage(Configuration.PREFIX + "There is noone with the name " + owner + "online!");
+			player.sendMessage(Configuration.PREFIX + "No claim with the name " + claimName + " found!");
 		}
 	}
 
 
 	@Override
 	public void setGUIFlag(final Player player, final String flagName, final String flagValue) {
-		int highestPrior = 0;
-		ProtectedRegion region = null;
 		RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
 		RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
 		assert regions != null;
-		final ApplicableRegionSet regionList = regions.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
-				player.getLocation().getY(), player.getLocation().getZ()));
-		if(!regionList.getRegions().isEmpty()) {
-			for (final ProtectedRegion pRegion : regionList) {
-				if (pRegion.getId().startsWith("claim_")) {
-					if (pRegion.getPriority() > highestPrior) {
-						highestPrior = pRegion.getPriority();
-						region = pRegion;
-					}
-				}
-			}
-			assert region != null;
-			if (region.getOwners().contains(player.getName()) || region.getOwners().contains(player.getUniqueId())) {
-				if(flagName.equalsIgnoreCase("time-lock")) {
-					region.setFlag(Flags.TIME_LOCK, flagValue);
-					player.sendMessage(Configuration.PREFIX + "Successfully set the Time Lock to " + flagValue);
-				} else if(flagName.equalsIgnoreCase("greeting-title")) {
-					region.setFlag(Flags.GREET_TITLE, flagValue);
-					player.sendMessage(Configuration.PREFIX + "Successfully set the Greeting Title to " + flagValue);
-				} else if(flagName.equalsIgnoreCase("greeting-message")) {
-					region.setFlag(Flags.GREET_MESSAGE, flagValue);
-					player.sendMessage(Configuration.PREFIX + "Successfully set the Greeting Message to " + flagValue);
-				} else if(flagName.equalsIgnoreCase("farewell-title")) {
-					region.setFlag(Flags.FAREWELL_TITLE, flagValue);
-					player.sendMessage(Configuration.PREFIX + "Successfully set the Farewell Title to " + flagValue);
-				} else if(flagName.equalsIgnoreCase("farewell-message")) {
-					region.setFlag(Flags.FAREWELL_MESSAGE, flagValue);
-					player.sendMessage(Configuration.PREFIX + "Successfully set the Farewell Message to " + flagValue);
-				}
-			} else {
-				player.sendMessage(Configuration.PREFIX + "You are not an owner of this claim!");
+		String[] regionFlags = flagName.split("/");
+		ProtectedRegion region = regions.getRegion(regionFlags[1]);
+		assert region != null;
+		if (region.getOwners().contains(player.getName()) || region.getOwners().contains(player.getUniqueId())) {
+			if(regionFlags[0].equalsIgnoreCase("time-lock")) {
+				region.setFlag(Flags.TIME_LOCK, flagValue);
+				player.sendMessage(Configuration.PREFIX + "Successfully set the Time Lock to " + flagValue);
+			} else if(regionFlags[0].equalsIgnoreCase("greeting-title")) {
+				region.setFlag(Flags.GREET_TITLE, flagValue);
+				player.sendMessage(Configuration.PREFIX + "Successfully set the Greeting Title to " + flagValue);
+			} else if(regionFlags[0].equalsIgnoreCase("greeting-message")) {
+				region.setFlag(Flags.GREET_MESSAGE, flagValue);
+				player.sendMessage(Configuration.PREFIX + "Successfully set the Greeting Message to " + flagValue);
+			} else if(regionFlags[0].equalsIgnoreCase("farewell-title")) {
+				region.setFlag(Flags.FAREWELL_TITLE, flagValue);
+				player.sendMessage(Configuration.PREFIX + "Successfully set the Farewell Title to " + flagValue);
+			} else if(regionFlags[0].equalsIgnoreCase("farewell-message")) {
+				region.setFlag(Flags.FAREWELL_MESSAGE, flagValue);
+				player.sendMessage(Configuration.PREFIX + "Successfully set the Farewell Message to " + flagValue);
+			} else if(regionFlags[0].equalsIgnoreCase("weather-lock")) {
+				region.setFlag(Flags.WEATHER_LOCK, WeatherTypes.get(flagValue));
+				player.sendMessage(Configuration.PREFIX + "Successfully set the Weather to " + flagValue);
 			}
 		} else {
-			player.sendMessage(Configuration.PREFIX + "There is no claim here!");
+			player.sendMessage(Configuration.PREFIX + "You are not an owner of this claim!");
 		}
 	}
 
 	@Override
-	public void createFlagGUI(final Player player) {
-		int highestPrior = 0;
-		ProtectedRegion region = null;
-		RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-		RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
-		final ApplicableRegionSet regionList = regions.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
-				player.getLocation().getY(), player.getLocation().getZ()));
-		if(!regionList.getRegions().isEmpty()) {
-			for (final ProtectedRegion pRegion : regionList) {
-				if (pRegion.getId().startsWith("claim_")) {
-					if (pRegion.getPriority() > highestPrior) {
-						highestPrior = pRegion.getPriority();
-						region = pRegion;
-					}
-				}
+	public void createFlagGUI(final Player player, final ProtectedRegion region) {
+		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Flags for: " + region.getId().substring(43));
+		ItemStack paneGray = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+		ItemMeta paneMetaG = paneGray.getItemMeta();
+		paneMetaG.setDisplayName(" ");
+		paneGray.setItemMeta(paneMetaG);
+		ItemStack paneWhite = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
+		ItemMeta paneMetaW = paneWhite.getItemMeta();
+		paneMetaW.setDisplayName(" ");
+		paneWhite.setItemMeta(paneMetaW);
+		for (int i = 0; i < 54; i++) {
+			if(i == 0) {
+				ItemStack startPane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+				ItemMeta startMeta = startPane.getItemMeta();
+				startMeta.setDisplayName(" ");
+				NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+				startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+				startPane.setItemMeta(startMeta);
+				flagsGUI.setItem(i, startPane);
+			} else if (i <= 6 || i == 8 || i >= 38 && i <= 42 || i >= 45 && i <= 51 || i == 53) {
+				flagsGUI.setItem(i, paneGray);
+			} else if (i == 7 || i == 16 || i == 25 || i == 34 || i == 43 || i == 52) {
+				flagsGUI.setItem(i, paneWhite);
 			}
-			if (region.getOwners().contains(player.getName()) || region.getOwners().contains(player.getUniqueId())) {
-				Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Flags");
-
-				ItemStack paneGray = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-				ItemMeta paneMetaG = paneGray.getItemMeta();
-				paneMetaG.setDisplayName(" ");
-				paneGray.setItemMeta(paneMetaG);
-				ItemStack paneWhite = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
-				ItemMeta paneMetaW = paneWhite.getItemMeta();
-				paneMetaW.setDisplayName(" ");
-				paneWhite.setItemMeta(paneMetaW);
-				for (int i = 0; i < 54; i++) {
-					if (i <= 6 || i == 8 || i >= 38 && i <= 42 || i >= 45 && i <= 51 || i == 53) {
-						flagsGUI.setItem(i, paneGray);
-					} else if (i == 7 || i == 16 || i == 25 || i == 34 || i == 43 || i == 52) {
-						flagsGUI.setItem(i, paneWhite);
-					}
-					if (i == 8) {
-						ItemStack flag = new ItemStack(Material.WHEAT_SEEDS);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Crop Trampling");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_GREEN + "[DONOR]");
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Crop Trampling in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 9) {
-						ItemStack flag = new ItemStack(Material.IRON_SWORD);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "PvP");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable PvP in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.PVP) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.PVP) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 10) {
-						ItemStack flag = new ItemStack(Material.CREEPER_HEAD);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Creeper Explosions");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Creeper Explosions in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.CREEPER_EXPLOSION) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.CREEPER_EXPLOSION) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 11) {
-						ItemStack flag = new ItemStack(Material.TNT);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Other Explosions");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Other Explosions in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.OTHER_EXPLOSION) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.OTHER_EXPLOSION) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 12) {
-						ItemStack flag = new ItemStack(Material.ZOMBIE_SPAWN_EGG);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Mob Spawning");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Mob Spawning in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 13) {
-						ItemStack flag = new ItemStack(Material.ROTTEN_FLESH);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Mob Damage");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Mob Damage in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.MOB_DAMAGE) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.MOB_DAMAGE) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 14) {
-						ItemStack flag = new ItemStack(Material.LAVA_BUCKET);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Lava Flow");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Lava Flow in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.LAVA_FLOW) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.LAVA_FLOW) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 15) {
-						ItemStack flag = new ItemStack(Material.WATER_BUCKET);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Water Flow");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Water Flow in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.WATER_FLOW) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.WATER_FLOW) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 17) {
-						ItemStack flag = new ItemStack(Material.CLOCK);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Time Lock");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_GREEN + "[DONOR]");
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set the time in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.TIME_LOCK) != null && !region.getFlag(Flags.TIME_LOCK).isEmpty()) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.TIME_LOCK));
-						} else {
-							lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 18) {
-						ItemStack flag = new ItemStack(Material.SNOW);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Snow Melt");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Snow Melting in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.SNOW_MELT) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.SNOW_MELT) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 19) {
-						ItemStack flag = new ItemStack(Material.SNOWBALL);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Snow Fall");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Snow Falling in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.SNOW_FALL) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.SNOW_FALL) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 20) {
-						ItemStack flag = new ItemStack(Material.PACKED_ICE);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "ice Form");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Ice Forming in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.ICE_FORM) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.ICE_FORM) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 21) {
-						ItemStack flag = new ItemStack(Material.ICE);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Ice Melt");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Ice Melting in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.ICE_MELT) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.ICE_MELT) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 22) {
-						ItemStack flag = new ItemStack(Material.OAK_LEAVES);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Leaf Decay");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Leaf Decay in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.LEAF_DECAY) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.LEAF_DECAY) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 23) {
-						ItemStack flag = new ItemStack(Material.GRASS_BLOCK);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Grass Spread");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Grass Spread in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.GRASS_SPREAD) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.GRASS_SPREAD) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 24) {
-						ItemStack flag = new ItemStack(Material.MYCELIUM);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Mycelium Spread");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Mycelium Spread in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.MYCELIUM_SPREAD) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.MYCELIUM_SPREAD) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 26) {
-						ItemStack flag = new ItemStack(Material.WARPED_SIGN);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Greeting Title");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_GREEN + "[DONOR]");
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set a Greeting Title in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.GREET_TITLE) != null && !region.getFlag(Flags.GREET_TITLE).isEmpty()) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.GREET_TITLE));
-						}else {
-							lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 27) {
-						ItemStack flag = new ItemStack(Material.VINE);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Vine Growth");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Vine Growth in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.VINE_GROWTH) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.VINE_GROWTH) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 28) {
-						ItemStack flag = new ItemStack(Material.IRON_SWORD);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Entry");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Allow/deny Entry into your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.ENTRY) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ALLOWED");
-						} else if (region.getFlag(Flags.ENTRY) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DENIED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ALLOWED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 29) {
-						ItemStack flag = new ItemStack(Material.CHORUS_FRUIT);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Chorus Fruit Use");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Chorus Fruit Use in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.CHORUS_TELEPORT) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.CHORUS_TELEPORT) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 30) {
-						ItemStack flag = new ItemStack(Material.ENDER_PEARL);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Enderpearl Use");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Enderpearl Use in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.ENDERPEARL) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.ENDERPEARL) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 31) {
-						ItemStack flag = new ItemStack(Material.OAK_SIGN);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Greeting");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set a Greeting message in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.GREET_MESSAGE) != null && !region.getFlag(Flags.GREET_MESSAGE).isEmpty()) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.GREET_MESSAGE));
-						}else {
-							lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 32) {
-						ItemStack flag = new ItemStack(Material.OAK_SIGN);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Farewell");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set a Farewell message in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.FAREWELL_MESSAGE) != null && !region.getFlag(Flags.FAREWELL_MESSAGE).isEmpty()) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.FAREWELL_MESSAGE));
-						}else {
-							lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 33) {
-						ItemStack flag = new ItemStack(Material.FEATHER);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Fall Damage");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Fall Damage in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.FALL_DAMAGE) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.FALL_DAMAGE) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 35) {
-						ItemStack flag = new ItemStack(Material.WARPED_SIGN);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Farewell Title");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_GREEN + "[DONOR]");
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set a Farewell Title in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.FAREWELL_TITLE) != null && !region.getFlag(Flags.FAREWELL_TITLE).isEmpty()) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.FAREWELL_TITLE));
-						}else {
-							lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 36) {
-						ItemStack flag = new ItemStack(Material.MINECART);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Vehicle Place");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Placing Vehicles in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.PLACE_VEHICLE) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.PLACE_VEHICLE) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 37) {
-						ItemStack flag = new ItemStack(Material.TNT_MINECART);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Vehicle Destroy");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Destroy Vehicles in your claim!");
-						lore.add("");
-						if (region.getFlag(Flags.DESTROY_VEHICLE) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(Flags.DESTROY_VEHICLE) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					} else if (i == 44) {
-						ItemStack flag = new ItemStack(Material.ELYTRA);
-						ItemMeta flagMeta = flag.getItemMeta();
-						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Flight");
-						ArrayList<String> lore = new ArrayList<>();
-						lore.add(ChatColor.DARK_GREEN + "[DONOR]");
-						lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Flight in your claim!");
-						lore.add("");
-						if (region.getFlag(net.goldtreeservers.worldguardextraflags.flags.Flags.FLY) == StateFlag.State.ALLOW) {
-							lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-						} else if (region.getFlag(net.goldtreeservers.worldguardextraflags.flags.Flags.FLY) == StateFlag.State.DENY) {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						} else {
-							lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-						}
-						flagMeta.setLore(lore);
-						flag.setItemMeta(flagMeta);
-						flagsGUI.setItem(i, flag);
-					}
-
-				}
-				player.openInventory(flagsGUI);
-			} else {
-				player.sendMessage(Configuration.PREFIX + "You do not have access to this!");
-			}
-		} else {
-			player.sendMessage(Configuration.PREFIX + "There is no claim here!");
-		}
-	}
-
-	@Override
-	public boolean setFlag(final Player player, final String claimName, final String flagName, final String flagValue, final RegionManager regionManager) {
-		if (regionManager.getRegion("claim_" + player.getUniqueId() + "_" + claimName) != null) {
-			StateFlag.State stateFlag = StateFlag.State.DENY;
-			boolean stringFlag = false;
-			if (flagValue.equalsIgnoreCase("true") || flagValue.equalsIgnoreCase("allow")) {
-				stateFlag = StateFlag.State.ALLOW;
-			}
-			final Map<Flag<?>, Object> mapFlags = Maps.newHashMap();
-			mapFlags.putAll(Objects.requireNonNull(regionManager.getRegion("claim_" + player.getUniqueId() + "_" + claimName)).getFlags());
-			if(Configuration.DONATORFLAGS.contains(flagName.toLowerCase())) {
-				if(player.hasPermission("skyprisonclaims.flags.donor")){
-					if(Configuration.getFlag(flagName) != null) {
-						mapFlags.put(Configuration.getFlag(flagName), stateFlag);
-					} else if(Configuration.getStringFlag(flagName) != null) {
-						stringFlag = true;
-						mapFlags.put(Configuration.getStringFlag(flagName), flagValue);
-					} else{
-						player.sendMessage(Configuration.PREFIX+"No such flag!");
-						return false;
-					}
-				}else {
-					player.sendMessage(Configuration.PREFIX+"You do not have the permission to use this flag!");
-					return false;
-				}
-			} else {
-				if(Configuration.getFlag(flagName) !=(null)) {
-					mapFlags.put(Configuration.getFlag(flagName), stateFlag);
-				}else if(Configuration.getStringFlag(flagName) !=(null)) {
-					stringFlag = true;
-					mapFlags.put(Configuration.getStringFlag(flagName), flagValue);
-				}
-				else {
-					player.sendMessage(Configuration.PREFIX+"No such flag!");
-					return false;
-				}
-			}
-			Objects.requireNonNull(regionManager.getRegion("claim_" + player.getUniqueId() + "_" + claimName)).setFlags(mapFlags);
-			if(stringFlag)
-				player.sendMessage(Configuration.PREFIX + "Flag " + flagName + " set to " + flagValue);
-			else
-				player.sendMessage(Configuration.PREFIX + "Flag " + flagName + " set to " + stateFlag.name());
-		}
-		else
-			player.sendMessage(Configuration.PREFIX+"No claim with the name " + claimName + " exists!");
-		return true;
-	}
-
-	@Override
-	public boolean removeFlag(final Player player, final String claimName, final String flagName, final RegionManager regionManager) {
-		if (regionManager.getRegion("claim_" + player.getUniqueId() + "_" + claimName) != null) {
-			Flag<?> flag = null;
-			if(Configuration.DONATORFLAGS.contains(flagName.toLowerCase())) {
-				if(player.hasPermission("skyprisonclaims.flags.donor")){
-					if(Configuration.getFlag(flagName) != null) {
-						flag = Configuration.getFlag(flagName);
-					}
-					if(Configuration.getStringFlag(flagName) != null) {
-						flag = Configuration.getStringFlag(flagName);
-					}
-				}else {
-					player.sendMessage(Configuration.PREFIX+"You do not have permission!");
-					return false;
-				}
-			} else {
-				if(Configuration.getFlag(flagName) != null) {
-					flag = Configuration.getFlag(flagName);
-				} else if(Configuration.getStringFlag(flagName) != null) {
-					flag = Configuration.getStringFlag(flagName);
+			if (i == 8) {
+				ItemStack flag = new ItemStack(Material.WHEAT_SEEDS);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Crop Trampling");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_GREEN + "[DONOR]");
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Crop Trampling in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
 				} else {
-					player.sendMessage(Configuration.PREFIX+"No such flag!");
-					return false;
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
 				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 9) {
+				ItemStack flag = new ItemStack(Material.IRON_SWORD);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "PvP");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable PvP in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.PVP) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.PVP) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 10) {
+				ItemStack flag = new ItemStack(Material.CREEPER_HEAD);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Creeper Explosions");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Creeper Explosions in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.CREEPER_EXPLOSION) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.CREEPER_EXPLOSION) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 11) {
+				ItemStack flag = new ItemStack(Material.TNT);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "TNT Explosions");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable TNT Explosions in your claim!");
+				lore.add(ChatColor.DARK_GRAY + " " + ChatColor.ITALIC + "This only affects members, non-members can never explode your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.TNT) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.TNT) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 12) {
+				ItemStack flag = new ItemStack(Material.ZOMBIE_SPAWN_EGG);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Mob Spawning");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Mob Spawning in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 13) {
+				ItemStack flag = new ItemStack(Material.ROTTEN_FLESH);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Mob Damage");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Mob Damage in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.MOB_DAMAGE) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.MOB_DAMAGE) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 14) {
+				ItemStack flag = new ItemStack(Material.LAVA_BUCKET);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Lava Flow");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Lava Flow in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.LAVA_FLOW) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.LAVA_FLOW) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 15) {
+				ItemStack flag = new ItemStack(Material.WATER_BUCKET);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Water Flow");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Water Flow in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.WATER_FLOW) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.WATER_FLOW) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 17) {
+				ItemStack flag = new ItemStack(Material.CLOCK);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Time Lock");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_GREEN + "[DONOR]");
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set the time in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.TIME_LOCK) != null && !region.getFlag(Flags.TIME_LOCK).isEmpty()) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.TIME_LOCK));
+				} else {
+					lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 18) {
+				ItemStack flag = new ItemStack(Material.SNOW);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Snow Melt");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Snow Melting in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.SNOW_MELT) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.SNOW_MELT) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 19) {
+				ItemStack flag = new ItemStack(Material.SNOWBALL);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Snow Fall");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Snow Falling in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.SNOW_FALL) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.SNOW_FALL) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 20) {
+				ItemStack flag = new ItemStack(Material.PACKED_ICE);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "ice Form");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Ice Forming in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.ICE_FORM) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.ICE_FORM) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 21) {
+				ItemStack flag = new ItemStack(Material.ICE);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Ice Melt");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Ice Melting in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.ICE_MELT) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.ICE_MELT) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 22) {
+				ItemStack flag = new ItemStack(Material.OAK_LEAVES);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Leaf Decay");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Leaf Decay in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.LEAF_DECAY) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.LEAF_DECAY) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 23) {
+				ItemStack flag = new ItemStack(Material.GRASS_BLOCK);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Grass Spread");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Grass Spread in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.GRASS_SPREAD) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.GRASS_SPREAD) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 24) {
+				ItemStack flag = new ItemStack(Material.MYCELIUM);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Mycelium Spread");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Mycelium Spread in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.MYCELIUM_SPREAD) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.MYCELIUM_SPREAD) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 26) {
+				ItemStack flag = new ItemStack(Material.WARPED_SIGN);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Greeting Title");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_GREEN + "[DONOR]");
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set a Greeting Title in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.GREET_TITLE) != null && !region.getFlag(Flags.GREET_TITLE).isEmpty()) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.GREET_TITLE));
+				}else {
+					lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 27) {
+				ItemStack flag = new ItemStack(Material.VINE);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Vine Growth");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Vine Growth in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.VINE_GROWTH) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.VINE_GROWTH) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 28) {
+				ItemStack flag = new ItemStack(Material.IRON_SWORD);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Entry");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Allow/deny Entry into your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.ENTRY) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ALLOWED");
+				} else if (region.getFlag(Flags.ENTRY) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DENIED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ALLOWED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 29) {
+				ItemStack flag = new ItemStack(Material.CHORUS_FRUIT);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Chorus Fruit Use");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Chorus Fruit Use in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.CHORUS_TELEPORT) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.CHORUS_TELEPORT) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 30) {
+				ItemStack flag = new ItemStack(Material.ENDER_PEARL);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Enderpearl Use");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Enderpearl Use in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.ENDERPEARL) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.ENDERPEARL) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 31) {
+				ItemStack flag = new ItemStack(Material.OAK_SIGN);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Greeting");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set a Greeting message in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.GREET_MESSAGE) != null && !region.getFlag(Flags.GREET_MESSAGE).isEmpty()) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.GREET_MESSAGE));
+				}else {
+					lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 32) {
+				ItemStack flag = new ItemStack(Material.OAK_SIGN);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Farewell");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set a Farewell message in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.FAREWELL_MESSAGE) != null && !region.getFlag(Flags.FAREWELL_MESSAGE).isEmpty()) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.FAREWELL_MESSAGE));
+				}else {
+					lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 33) {
+				ItemStack flag = new ItemStack(Material.FEATHER);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Fall Damage");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Fall Damage in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.FALL_DAMAGE) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.FALL_DAMAGE) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 35) {
+				ItemStack flag = new ItemStack(Material.WARPED_SIGN);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Farewell Title");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_GREEN + "[DONOR]");
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set a Farewell Title in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.FAREWELL_TITLE) != null && !region.getFlag(Flags.FAREWELL_TITLE).isEmpty()) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.FAREWELL_TITLE));
+				}else {
+					lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 36) {
+				ItemStack flag = new ItemStack(Material.MINECART);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Vehicle Place");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Placing Vehicles in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.PLACE_VEHICLE) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.PLACE_VEHICLE) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 37) {
+				ItemStack flag = new ItemStack(Material.TNT_MINECART);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Vehicle Destroy");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Destroy Vehicles in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.DESTROY_VEHICLE) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.DESTROY_VEHICLE) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 38) {
+				ItemStack flag = new ItemStack(Material.ENDER_EYE);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Enderman Grief");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable endermen being able to place/remove blocks!");
+				lore.add("");
+				if (region.getFlag(Flags.ENDER_BUILD) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.ENDER_BUILD) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 39) {
+				ItemStack flag = new ItemStack(Material.FLINT_AND_STEEL);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Fire");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable fire related flags like fire spread, lightning, etc.");
+				lore.add("");
+				if (region.getFlag(Flags.FIRE_SPREAD) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.FIRE_SPREAD) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 40) {
+				ItemStack flag = new ItemStack(Material.DIAMOND);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Item Pickup");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable item pickup for non-members");
+				lore.add("");
+				if (region.getFlag(Flags.ITEM_PICKUP) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.ITEM_PICKUP) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 44) {
+				ItemStack flag = new ItemStack(Material.ELYTRA);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Flight");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_GREEN + "[DONOR]");
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Flight in your claim!");
+				lore.add("");
+				if (region.getFlag(plugin.FLY) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(plugin.FLY) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			} else if (i == 53) {
+				ItemStack flag = new ItemStack(Material.WATER_BUCKET);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Weather Lock");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_GREEN + "[DONOR]");
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Set the weather in your claim!");
+				lore.add(ChatColor.DARK_GRAY + "Weather Options: (clear, rain, thunder)");
+				lore.add("");
+				if (region.getFlag(Flags.WEATHER_LOCK) != null) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + region.getFlag(Flags.WEATHER_LOCK));
+				} else {
+					lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "NOT SET");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
 			}
-			final Map<Flag<?>, Object> claimFlags = Objects.requireNonNull(regionManager.getRegion("claim_" + player.getUniqueId() + "_" + claimName)).getFlags();
-			claimFlags.remove(flag);
-			Objects.requireNonNull(regionManager.getRegion("claim_" + player.getUniqueId() + "_" + claimName)).setFlags(claimFlags);
-			player.sendMessage(Configuration.PREFIX + "Flag " + flagName + " removed from: " + claimName);
-		} else
-			player.sendMessage(Configuration.PREFIX+"Could not find claim with id: " + claimName);
-		return false;
+
+		}
+		player.openInventory(flagsGUI);
 	}
 
 	@Override
@@ -1231,13 +1494,13 @@ public class ClaimServiceImpl implements ClaimService {
 					final BlockVector3 p2 = region.getMaximumPoint();
 					ProtectedRegion newRegion;
 					if(player.getFacing() == BlockFace.NORTH) {
-						newRegion = new ProtectedCuboidRegion(region.getId(), p1.subtract(0,0, amount), p2);
+						newRegion = new ProtectedCuboidRegion(region.getId(), p1.subtract(0,-64, amount), p2);
 					} else if(player.getFacing() == BlockFace.SOUTH){
-						newRegion = new ProtectedCuboidRegion(region.getId(), p1, p2.add(0,0, amount));
+						newRegion = new ProtectedCuboidRegion(region.getId(), p1, p2.add(0,-64, amount));
 					} else if(player.getFacing() == BlockFace.WEST){
-						newRegion = new ProtectedCuboidRegion(region.getId(), p1.subtract(amount,0,0), p2);
+						newRegion = new ProtectedCuboidRegion(region.getId(), p1.subtract(amount,-64,0), p2);
 					} else if(player.getFacing() == BlockFace.EAST) {
-						newRegion = new ProtectedCuboidRegion(region.getId(),p1, p2.add(amount,0, 0));
+						newRegion = new ProtectedCuboidRegion(region.getId(),p1, p2.add(amount,-64, 0));
 					} else {
 						player.sendMessage(Configuration.PREFIX+"Something went wrong! Please contact an administrator.");
 						return false;
@@ -1246,15 +1509,15 @@ public class ClaimServiceImpl implements ClaimService {
 						for (final ProtectedRegion overlapingClaim : newRegion.getIntersectingRegions(regionManager.getRegions().values())) {
 							if(overlapingClaim.getParent() == null && !overlapingClaim.getId().equals(newRegion.getId())) {
 								if(region.getParent() != null && region.getParent().getId().equals(overlapingClaim.getId())) {
-									player.sendMessage(Configuration.PREFIX+"You can not expand a child claim!");
+									player.sendMessage(Configuration.PREFIX + "You can not expand a child claim!");
 								} else {
-									player.sendMessage(Configuration.PREFIX+"Expansion failed! Claim overlaping claim: " + overlapingClaim.getId().substring(43));
+									player.sendMessage(Configuration.PREFIX + "Expansion failed! Claim overlapping claim: " + overlapingClaim.getId().substring(43));
 								}
 								return false;
 							}
 						}
 					}
-					final int newVolume = (newRegion.volume()/256) - (region.volume()/256);
+					final int newVolume = (newRegion.volume()/384) - (region.volume()/384);
 					if((totalClaimBlocksInUse + newVolume) <= totalClaimBlocks) {
 						try {
 							playerConfig.set("player.totalClaimBlocksInUse", totalClaimBlocksInUse + newVolume);
@@ -1314,8 +1577,8 @@ public class ClaimServiceImpl implements ClaimService {
 	@Override
 	public void getNearbyClaims(final Player player, final int radius, final RegionManager regionManager) {
 		final ProtectedCuboidRegion region = new ProtectedCuboidRegion("tmpClaimName",
-				BlockVector3.at(player.getLocation().getX()-radius, 0, player.getLocation().getZ()-radius),
-				BlockVector3.at(player.getLocation().getX()+radius, 256, player.getLocation().getZ()+radius));
+				BlockVector3.at(player.getLocation().getX()-radius, -64, player.getLocation().getZ()-radius),
+				BlockVector3.at(player.getLocation().getX()+radius, 319, player.getLocation().getZ()+radius));
 		final List<ProtectedRegion> overlapingClaims = region.getIntersectingRegions(regionManager.getRegions().values());
 		if(!overlapingClaims.isEmpty()) {
 			player.sendMessage(Configuration.PREFIX+"Found " + overlapingClaims.size() + " claims nearby:");

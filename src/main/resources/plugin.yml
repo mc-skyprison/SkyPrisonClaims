@@ -1,8 +1,8 @@
 name: SkyPrisonClaims
 version: ${project.version}
 main: net.skyprison.skyprisonclaims.SkyPrisonClaims
-api-version: 1.16
-depend: [WorldGuard, WorldEdit, WorldGuardExtraFlags, CMI]
+api-version: 1.17
+depend: [WorldGuard, WorldEdit, CMI]
 authors: [Goppi, DrakePork]
 website: https://skyprison.net/
 description: Claims plugin for SkyPrison

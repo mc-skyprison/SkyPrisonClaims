@@ -1,7 +1,18 @@
 package net.skyprison.skyprisonclaims;
 
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.flags.Flag;
+import com.sk89q.worldguard.protection.flags.RegistryFlag;
+import com.sk89q.worldguard.protection.flags.StateFlag;
+import com.sk89q.worldguard.protection.flags.StringFlag;
+import com.sk89q.worldguard.protection.flags.registry.FlagConflictException;
+import com.sk89q.worldguard.protection.flags.registry.FlagRegistry;
+import com.sk89q.worldguard.session.SessionManager;
 import net.skyprison.skyprisonclaims.commands.Claim;
 import net.skyprison.skyprisonclaims.commands.ClaimAdmin;
+import net.skyprison.skyprisonclaims.utils.CustomFlags;
+import net.skyprison.skyprisonclaims.utils.EffectFlagHandler;
+import net.skyprison.skyprisonclaims.utils.FlyFlagHandler;
 import net.skyprison.skyprisonclaims.utils.PlayerEventHandler;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import net.skyprison.skyprisonclaims.services.*;
@@ -10,6 +21,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionType;
 
 import java.io.File;
 import java.util.List;
@@ -29,10 +41,41 @@ public final class SkyPrisonClaims extends JavaPlugin {
 	private ClaimAdmin adminCmd;
 	private Claim playerCmd;
 
+
+	private CustomFlags customFlags;
+
 	public boolean totalBlockLimit;
 	public int totalBlockAmountLimit;
 	public int claimBlockPrice;
 	public List<String> worlds;
+
+	public static StateFlag FLY;
+	public static StringFlag EFFECTS;
+
+	@Override
+	public void onLoad() {
+		FlagRegistry registry = WorldGuard.getInstance().getFlagRegistry();
+		try {
+			StateFlag flag = new StateFlag("fly", false);
+			registry.register(flag);
+			FLY = flag;
+			this.getLogger().info("Loaded Fly Flag");
+
+			StringFlag eFlag = new StringFlag("give-effects");
+			registry.register(eFlag);
+			EFFECTS = eFlag;
+			this.getLogger().info("Loaded Effects Flag");
+		} catch (FlagConflictException e) {
+			Flag<?> existing = registry.get("fly");
+			if (existing instanceof StateFlag) {
+				FLY = (StateFlag) existing;
+			}
+			Flag<?> existing2 = registry.get("give-effects");
+			if (existing2 instanceof StringFlag) {
+				EFFECTS = (StringFlag) existing2;
+			}
+		}
+	}
 
 
 
@@ -41,9 +84,14 @@ public final class SkyPrisonClaims extends JavaPlugin {
 		final Logger logger = getLogger();
 		fileService = new FileServiceImpl();
 		clientService = new ClientServiceImpl();
-		claimService = new ClaimServiceImpl(fileService, clientService);
+		claimService = new ClaimServiceImpl(fileService, clientService, this);
 		adminCmd = new ClaimAdmin(this);
 		playerCmd = new Claim(this, claimService, clientService, fileService);
+		customFlags = new CustomFlags(FLY, EFFECTS);
+		SessionManager sessionManager = WorldGuard.getInstance().getPlatform().getSessionManager();
+		sessionManager.registerHandler(FlyFlagHandler.FACTORY, null);
+		sessionManager.registerHandler(EffectFlagHandler.FACTORY, null);
+
 		logger.info("Loaded services");
 		final File f = new File(this.getDataFolder() + "/");
 		if(!f.exists()) {
@@ -58,11 +106,7 @@ public final class SkyPrisonClaims extends JavaPlugin {
 
 
 		loadConfig();
-		logger.info("Loaded configuration!");
-		logger.info("Loaded economy");
-		getServer().getPluginManager().registerEvents(new PlayerEventHandler(getWorldedit(), configurationSection, claimService), this);
-		logger.info("Loaded listeners");
-		logger.info("Claimplugin loaded and ready to use!");
+		getServer().getPluginManager().registerEvents(new PlayerEventHandler(getWorldedit(), configurationSection, claimService, fileService, this), this);
 	}
 
 	@Override

@@ -2,6 +2,7 @@ package net.skyprison.skyprisonclaims.services;
 
 import com.google.common.collect.Lists;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -21,13 +22,12 @@ public class FileServiceImpl implements FileService {
 	}
 
 	@Override
-	public File getPlayerFile(final Player player){
+	public File getPlayerFile(final OfflinePlayer player){
 		final File file = new File(Bukkit.getServer().getPluginManager().getPlugin("SkyPrisonClaims").getDataFolder()+"/players/"+player.getUniqueId()+".yml");
 		if (!file.exists()) {
 			try {
 				file.createNewFile();
 				final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(file);
-				playerConfig.set("player.name", player.getName());
 				playerConfig.set("player.totalClaimBlocks", configurationSection.getInt("player.startingBlockAmount"));
 				playerConfig.set("player.totalClaimBlocksInUse", 0);
 				playerConfig.set("player.claims", new ArrayList());
@@ -40,7 +40,7 @@ public class FileServiceImpl implements FileService {
 	}
 
 	@Override
-	public void saveToFile(final FileConfiguration playerConfig, final Player player) {
+	public void saveToFile(final FileConfiguration playerConfig, final OfflinePlayer player) {
 		try {
 			playerConfig.save(getPlayerFile(player));
 		} catch (final IOException e) {
