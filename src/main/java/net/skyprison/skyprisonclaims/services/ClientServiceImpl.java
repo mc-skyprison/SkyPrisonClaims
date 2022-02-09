@@ -3,9 +3,9 @@ package net.skyprison.skyprisonclaims.services;
 import com.Zrips.sv.AreaShapes.CuboidArea;
 import com.Zrips.sv.AreaShapes.svUpdateType;
 import com.Zrips.sv.AreaShapes.svVisualCuboid;
-import com.Zrips.sv.Containers.AreaType;
-import com.Zrips.sv.Containers.CuboidSide;
+import com.Zrips.sv.Containers.*;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import net.Zrips.CMILib.Effects.CMIEffectManager;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -43,6 +43,12 @@ public class ClientServiceImpl implements ClientService {
 				}
 			}
 		};
+		svEffect anEffect = new svEffect();
+		anEffect.setCap(50);
+		anEffect.setEffect(CMIEffectManager.CMIParticle.COLOURED_DUST);
+		anEffect.setCollumn(1.0);
+		anEffect.setRow(1.0);
+		newCuboid.setEffect(svEffectType.Effect1, anEffect);
 		newCuboid.addUpdateType(svUpdateType.move4blocks);
 		newCuboid.startRender();
 	}

@@ -10,10 +10,7 @@ import com.sk89q.worldguard.protection.flags.registry.FlagRegistry;
 import com.sk89q.worldguard.session.SessionManager;
 import net.skyprison.skyprisonclaims.commands.Claim;
 import net.skyprison.skyprisonclaims.commands.ClaimAdmin;
-import net.skyprison.skyprisonclaims.utils.CustomFlags;
-import net.skyprison.skyprisonclaims.utils.EffectFlagHandler;
-import net.skyprison.skyprisonclaims.utils.FlyFlagHandler;
-import net.skyprison.skyprisonclaims.utils.PlayerEventHandler;
+import net.skyprison.skyprisonclaims.utils.*;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import net.skyprison.skyprisonclaims.services.*;
 import org.bukkit.Bukkit;
@@ -51,6 +48,7 @@ public final class SkyPrisonClaims extends JavaPlugin {
 
 	public static StateFlag FLY;
 	public static StringFlag EFFECTS;
+	public static StringFlag CONSOLECMD;
 
 	@Override
 	public void onLoad() {
@@ -65,6 +63,11 @@ public final class SkyPrisonClaims extends JavaPlugin {
 			registry.register(eFlag);
 			EFFECTS = eFlag;
 			this.getLogger().info("Loaded Effects Flag");
+
+			StringFlag cFlag = new StringFlag("console-command");
+			registry.register(cFlag);
+			CONSOLECMD = cFlag;
+			this.getLogger().info("Loaded Console Command Flag");
 		} catch (FlagConflictException e) {
 			Flag<?> existing = registry.get("fly");
 			if (existing instanceof StateFlag) {
@@ -73,6 +76,10 @@ public final class SkyPrisonClaims extends JavaPlugin {
 			Flag<?> existing2 = registry.get("give-effects");
 			if (existing2 instanceof StringFlag) {
 				EFFECTS = (StringFlag) existing2;
+			}
+			Flag<?> existing3 = registry.get("console-command");
+			if (existing3 instanceof StringFlag) {
+				CONSOLECMD = (StringFlag) existing3;
 			}
 		}
 	}
@@ -87,10 +94,11 @@ public final class SkyPrisonClaims extends JavaPlugin {
 		claimService = new ClaimServiceImpl(fileService, clientService, this);
 		adminCmd = new ClaimAdmin(this);
 		playerCmd = new Claim(this, claimService, clientService, fileService);
-		customFlags = new CustomFlags(FLY, EFFECTS);
+		customFlags = new CustomFlags(FLY, EFFECTS, CONSOLECMD);
 		SessionManager sessionManager = WorldGuard.getInstance().getPlatform().getSessionManager();
 		sessionManager.registerHandler(FlyFlagHandler.FACTORY, null);
 		sessionManager.registerHandler(EffectFlagHandler.FACTORY, null);
+		sessionManager.registerHandler(ConsoleCmdFlagHandler.FACTORY, null);
 
 		logger.info("Loaded services");
 		final File f = new File(this.getDataFolder() + "/");

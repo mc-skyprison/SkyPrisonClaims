@@ -9,7 +9,7 @@ import com.sk89q.worldedit.regions.selector.CuboidRegionSelector;
 import com.sk89q.worldedit.regions.selector.RegionSelectorType;
 import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.flags.RegionGroup;
-import io.papermc.paper.event.player.AsyncChatEvent;
+import net.milkbowl.vault.permission.Permission;
 import net.skyprison.skyprisonclaims.SkyPrisonClaims;
 import net.skyprison.skyprisonclaims.services.ClaimService;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -41,11 +41,9 @@ import net.skyprison.skyprisonclaims.services.ClientService;
 import net.skyprison.skyprisonclaims.services.ClientServiceImpl;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.RegisteredServiceProvider;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class PlayerEventHandler implements Listener {
 
@@ -73,7 +71,7 @@ public class PlayerEventHandler implements Listener {
 	}
 
 
-	@EventHandler
+/*	@EventHandler
 	public void toggleElytra(EntityToggleGlideEvent event) {
 		if(event.isGliding()) {
 			if (event.getEntity() instanceof Player) {
@@ -91,12 +89,13 @@ public class PlayerEventHandler implements Listener {
 					for(ProtectedRegion region : regionList) {
 						if(region.getId().contains("nofly") || region.getId().contains("no-fly")) {
 							player.setGliding(false);
+							break;
 						}
 					}
 				}
 			}
 		}
-	}
+	}*/
 
 	@EventHandler
 	public void elytraFlight(PlayerMoveEvent event) {
@@ -115,6 +114,7 @@ public class PlayerEventHandler implements Listener {
 						if(region.getId().contains("nofly") || region.getId().contains("no-fly")) {
 							player.teleport(event.getFrom());
 							player.setGliding(false);
+							break;
 						}
 					}
 				}
@@ -220,6 +220,7 @@ public class PlayerEventHandler implements Listener {
 		}
 	}
 
+
 	@EventHandler
 	public void invClick(InventoryClickEvent event) {
 		if (ChatColor.stripColor(event.getView().getTitle()).contains("Flags")) {
@@ -235,12 +236,23 @@ public class PlayerEventHandler implements Listener {
 				if(event.getClickedInventory().getItem(0) != null && !event.getClickedInventory().getItem(0).getPersistentDataContainer().isEmpty()) {
 					PersistentDataContainer regionData = Objects.requireNonNull(event.getClickedInventory().getItem(0)).getPersistentDataContainer();
 					String regionName = regionData.get(regionKey, PersistentDataType.STRING);
+
+					boolean hasFlag = false;
+
+
+					RegisteredServiceProvider<Permission> rsp = plugin.getServer().getServicesManager().getRegistration(Permission.class);
+					Permission perms = rsp.getProvider();
+
+					if(perms.playerHas("world_free", Bukkit.getOfflinePlayer(UUID.fromString(regionName.split("_")[1])), "skyprisonclaims.flags.donor")) {
+						hasFlag = true;
+					}
+
 					ProtectedRegion region = regions.getRegion(regionName);
 					assert region != null;
 					if (region.getOwners().contains(player.getName()) || region.getOwners().contains(player.getUniqueId())) {
 						switch (event.getSlot()) {
 							case 8:
-								if (player.hasPermission("skyprisonclaims.flags.donor")) {
+								if (hasFlag) {
 									if (event.isLeftClick()) {
 										if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.ALLOW) {
 											region.setFlag(Flags.TRAMPLE_BLOCKS, StateFlag.State.DENY);
@@ -359,7 +371,7 @@ public class PlayerEventHandler implements Listener {
 								ClaimService.createFlagGUI(player, region);
 								break;
 							case 17:
-								if (player.hasPermission("skyprisonclaims.flags.donor")) {
+								if (hasFlag) {
 									if (event.isLeftClick()) {
 										clientService.addPlayerChatLock(player, "time-lock/" + region.getId());
 										player.closeInventory();
@@ -471,7 +483,7 @@ public class PlayerEventHandler implements Listener {
 								ClaimService.createFlagGUI(player, region);
 								break;
 							case 26:
-								if (player.hasPermission("skyprisonclaims.flags.donor")) {
+								if (hasFlag) {
 									if (event.isLeftClick()) {
 										clientService.addPlayerChatLock(player, "greeting-title/" + region.getId());
 										player.closeInventory();
@@ -595,6 +607,7 @@ public class PlayerEventHandler implements Listener {
 															} else {
 																Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "spawn " + oPlayer.getName());
 															}
+															break;
 														}
 													}
 												}
@@ -669,7 +682,7 @@ public class PlayerEventHandler implements Listener {
 								ClaimService.createFlagGUI(player, region);
 								break;
 							case 35:
-								if (player.hasPermission("skyprisonclaims.flags.donor")) {
+								if (hasFlag) {
 									if (event.isLeftClick()) {
 										clientService.addPlayerChatLock(player, "farewell-title/" + region.getId());
 										player.closeInventory();
@@ -759,7 +772,7 @@ public class PlayerEventHandler implements Listener {
 								ClaimService.createFlagGUI(player, region);
 								break;
 							case 44:
-								if (player.hasPermission("skyprisonclaims.flags.donor")) {
+								if (hasFlag) {
 									if (event.isLeftClick()) {
 										if (region.getFlag(plugin.FLY) == StateFlag.State.ALLOW) {
 											region.setFlag(plugin.FLY, StateFlag.State.DENY);
@@ -777,7 +790,7 @@ public class PlayerEventHandler implements Listener {
 								ClaimService.createFlagGUI(player, region);
 								break;
 							case 53:
-								if(player.hasPermission("skyprisonclaims.flags.donor")) {
+								if(hasFlag) {
 									if(event.isLeftClick()) {
 										clientService.addPlayerChatLock(player, "weather-lock/" + region.getId());
 										player.closeInventory();

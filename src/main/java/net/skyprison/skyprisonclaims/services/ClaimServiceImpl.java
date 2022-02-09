@@ -478,7 +478,7 @@ public class ClaimServiceImpl implements ClaimService {
 			player.sendMessage(ChatColor.YELLOW + "Claim admin(s): " + admins);
 			player.sendMessage(ChatColor.YELLOW + "Claim member(s): " + members);
 			player.sendMessage("");
-			TextComponent flagText = Component.text("VIEW CLAIM FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags"));
+			TextComponent flagText = Component.text("VIEW CLAIM FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags")).hoverEvent(Component.text(plugin.colourMessage("&eClick me!")));
 			player.sendMessage(flagText);
 		} else
 			player.sendMessage(Configuration.PREFIX + "Could not find a claim with that name!");
@@ -534,7 +534,7 @@ public class ClaimServiceImpl implements ClaimService {
 				player.sendMessage(ChatColor.YELLOW + "Claim admin(s): " + admins);
 				player.sendMessage(ChatColor.YELLOW + "Claim member(s): " + members);
 				player.sendMessage("");
-				TextComponent flagText = Component.text("VIEW CLAIM FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags"));
+				TextComponent flagText = Component.text("VIEW CLAIM FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags")).hoverEvent(Component.text(plugin.colourMessage("&eClick me!")));
 				player.sendMessage(flagText);
 			}
 		} else
