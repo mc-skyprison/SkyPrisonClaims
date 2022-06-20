@@ -1,6 +1,7 @@
 package net.skyprison.skyprisonclaims.services;
 
 import com.Zrips.CMI.CMI;
+import com.Zrips.CMI.Containers.CMIUser;
 import com.google.common.collect.Maps;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -125,7 +126,7 @@ public class ClaimServiceImpl implements ClaimService {
 							if (totalClaimBlocksInUse + regionSize <= totalClaimBlocks) {
 								regionManager.addRegion(region);
 								final DefaultDomain owner = region.getOwners();
-								owner.addPlayer(player.getName());
+								owner.addPlayer(player.getUniqueId());
 								region.setOwners(owner);
 								final Map<Flag<?>, Object> map = Maps.newHashMap();
 								map.put(Flags.PVP, StateFlag.State.DENY);
@@ -170,7 +171,7 @@ public class ClaimServiceImpl implements ClaimService {
 							if (totalClaimBlocksInUse + regionSize <= totalClaimBlocks) {
 								regionManager.addRegion(region);
 								final DefaultDomain owner = region.getOwners();
-								owner.addPlayer(player.getName());
+								owner.addPlayer(player.getUniqueId());
 								region.setOwners(owner);
 								final Map<Flag<?>, Object> map = Maps.newHashMap();
 								map.put(Flags.PVP, StateFlag.State.DENY);
@@ -259,7 +260,7 @@ public class ClaimServiceImpl implements ClaimService {
 							if (totalClaimBlocksInUse + regionSize <= totalClaimBlocks) {
 								regionManager.addRegion(region);
 								final DefaultDomain owner = region.getOwners();
-								owner.addPlayer(player.getName());
+								owner.addPlayer(player.getUniqueId());
 								region.setOwners(owner);
 								final Map<Flag<?>, Object> map = Maps.newHashMap();
 								map.put(Flags.PVP, StateFlag.State.DENY);
@@ -303,7 +304,7 @@ public class ClaimServiceImpl implements ClaimService {
 							if (totalClaimBlocksInUse + regionSize <= totalClaimBlocks) {
 								regionManager.addRegion(region);
 								final DefaultDomain owner = region.getOwners();
-								owner.addPlayer(player.getName());
+								owner.addPlayer(player.getUniqueId());
 								region.setOwners(owner);
 								final Map<Flag<?>, Object> map = Maps.newHashMap();
 								map.put(Flags.PVP, StateFlag.State.DENY);
@@ -438,47 +439,44 @@ public class ClaimServiceImpl implements ClaimService {
 		FileService.saveToFile(playerConfig, player);
 	}
 
-	private void sendClaimInfo(Player player, ProtectedRegion region) {
-		player.sendMessage(ChatColor.GOLD + "---=== Claim information ===---");
-		player.sendMessage(ChatColor.YELLOW + "Claim name: " + region.getId().substring(43));
-	}
-
 	@Override
 	public void getClaimInfoById(final Player player, final String claimId, final RegionManager regionManager) {
 		final ProtectedRegion region = regionManager.getRegions().get("claim_" + player.getUniqueId() + "_" + claimId);
 		if (region != null && (region.getOwners().contains(player.getName()) || (region.getOwners().contains(player.getUniqueId())))) {
 			player.sendMessage(ChatColor.GOLD + "---=== Claim information ===---");
-			player.sendMessage(ChatColor.YELLOW + "Claim name: " + region.getId().substring(43));
+			player.sendMessage(ChatColor.YELLOW + "Name: " + region.getId().substring(43));
 			if(region.getParent() != null)
-				player.sendMessage(ChatColor.YELLOW + "Claim parent: " + region.getParent().getId().substring(43));
-			player.sendMessage(ChatColor.YELLOW + "Claim coords: " + region.getMinimumPoint() + " - " + region.getMaximumPoint());
-			player.sendMessage(ChatColor.YELLOW + "Claim owner: " + player.getName());
+				player.sendMessage(ChatColor.YELLOW + "Parent Claim: " + region.getParent().getId().substring(43));
+			player.sendMessage(ChatColor.YELLOW + "Coords: " + region.getMinimumPoint() + " - " + region.getMaximumPoint());
+			player.sendMessage(ChatColor.YELLOW + "Owner: " + player.getName());
 			StringBuilder admins = new StringBuilder();
-			Iterator<String> owners = region.getOwners().getPlayers().iterator();
+			Iterator<UUID> owners = region.getOwners().getUniqueIds().iterator();
 			while(owners.hasNext()) {
-				String owner = owners.next();
-				if(!owner.equalsIgnoreCase(player.getName())) {
-					admins.append(owner);
+				UUID owner = owners.next();
+				if(!owner.equals(player.getUniqueId())) {
+					OfflinePlayer admin = Bukkit.getOfflinePlayer(owner);
+					admins.append(admin.getName());
 					if (owners.hasNext()) {
 						admins.append(", ");
 					}
 				}
 			}
 			StringBuilder members = new StringBuilder();
-			Iterator<String> iMembers = region.getMembers().getPlayers().iterator();
+			Iterator<UUID> iMembers = region.getMembers().getUniqueIds().iterator();
 			while(iMembers.hasNext()) {
-				String member = iMembers.next();
-				if(!region.getOwners().getPlayers().contains(member)) {
-					members.append(member);
+				UUID member = iMembers.next();
+				if(!region.getOwners().getUniqueIds().contains(member)) {
+					OfflinePlayer oMember = Bukkit.getOfflinePlayer(member);
+					members.append(oMember.getName());
 					if (iMembers.hasNext()) {
 						members.append(", ");
 					}
 				}
 			}
-			player.sendMessage(ChatColor.YELLOW + "Claim admin(s): " + admins);
-			player.sendMessage(ChatColor.YELLOW + "Claim member(s): " + members);
+			player.sendMessage(ChatColor.YELLOW + "Admin(s): " + admins);
+			player.sendMessage(ChatColor.YELLOW + "Member(s): " + members);
 			player.sendMessage("");
-			TextComponent flagText = Component.text("VIEW CLAIM FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags")).hoverEvent(Component.text(plugin.colourMessage("&eClick me!")));
+			TextComponent flagText = Component.text("VIEW FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags")).hoverEvent(Component.text(plugin.colourMessage("&eClick me!")));
 			player.sendMessage(flagText);
 		} else
 			player.sendMessage(Configuration.PREFIX + "Could not find a claim with that name!");
@@ -501,40 +499,42 @@ public class ClaimServiceImpl implements ClaimService {
 			}
 			if(pRegion != null) {
 				player.sendMessage(ChatColor.GOLD + "---=== Claim information ===---");
-				player.sendMessage(ChatColor.YELLOW + "Claim name: " + pRegion.getId().substring(43));
+				player.sendMessage(ChatColor.YELLOW + "Name: " + pRegion.getId().substring(43));
 				if (pRegion.getParent() != null)
-					player.sendMessage(ChatColor.YELLOW + "Claim parent: " + pRegion.getParent().getId().substring(43));
-				player.sendMessage(ChatColor.YELLOW + "Claim coords: " + pRegion.getMinimumPoint() + " - " + pRegion.getMaximumPoint());
+					player.sendMessage(ChatColor.YELLOW + "Parent Claim: " + pRegion.getParent().getId().substring(43));
+				player.sendMessage(ChatColor.YELLOW + "Coords: " + pRegion.getMinimumPoint() + " - " + pRegion.getMaximumPoint());
 				String[] regionId = pRegion.getId().split("_");
 				OfflinePlayer claimOwner = Bukkit.getOfflinePlayer(UUID.fromString(regionId[1]));
 				assert claimOwner != null;
-				player.sendMessage(ChatColor.YELLOW + "Claim owner: " + claimOwner.getName());
+				player.sendMessage(ChatColor.YELLOW + "Owner: " + claimOwner.getName());
 				StringBuilder admins = new StringBuilder();
-				Iterator<String> owners = pRegion.getOwners().getPlayers().iterator();
-				while (owners.hasNext()) {
-					String owner = owners.next();
-					if (!owner.equalsIgnoreCase(claimOwner.getName())) {
-						admins.append(owner);
+				Iterator<UUID> owners = pRegion.getOwners().getUniqueIds().iterator();
+				while(owners.hasNext()) {
+					UUID owner = owners.next();
+					if(!owner.equals(claimOwner.getUniqueId())) {
+						OfflinePlayer admin = Bukkit.getOfflinePlayer(owner);
+						admins.append(admin.getName());
 						if (owners.hasNext()) {
 							admins.append(", ");
 						}
 					}
 				}
 				StringBuilder members = new StringBuilder();
-				Iterator<String> iMembers = pRegion.getMembers().getPlayers().iterator();
-				while (iMembers.hasNext()) {
-					String member = iMembers.next();
-					if (!pRegion.getOwners().getPlayers().contains(member)) {
-						members.append(member);
+				Iterator<UUID> iMembers = pRegion.getMembers().getUniqueIds().iterator();
+				while(iMembers.hasNext()) {
+					UUID member = iMembers.next();
+					if(!pRegion.getOwners().getUniqueIds().contains(member)) {
+						OfflinePlayer oMember = Bukkit.getOfflinePlayer(member);
+						members.append(oMember.getName());
 						if (iMembers.hasNext()) {
 							members.append(", ");
 						}
 					}
 				}
-				player.sendMessage(ChatColor.YELLOW + "Claim admin(s): " + admins);
-				player.sendMessage(ChatColor.YELLOW + "Claim member(s): " + members);
+				player.sendMessage(ChatColor.YELLOW + "Admin(s): " + admins);
+				player.sendMessage(ChatColor.YELLOW + "Member(s): " + members);
 				player.sendMessage("");
-				TextComponent flagText = Component.text("VIEW CLAIM FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags")).hoverEvent(Component.text(plugin.colourMessage("&eClick me!")));
+				TextComponent flagText = Component.text("VIEW FLAGS").color(NamedTextColor.YELLOW).decoration(TextDecoration.BOLD, true).clickEvent(ClickEvent.runCommand("/claim flags")).hoverEvent(Component.text(plugin.colourMessage("&eClick me!")));
 				player.sendMessage(flagText);
 			}
 		} else
@@ -542,7 +542,7 @@ public class ClaimServiceImpl implements ClaimService {
 	}
 
 	@Override
-	public void addMember(final Player player, final String member, final RegionManager regionManager) {
+	public void addMember(final Player player, final CMIUser member, final RegionManager regionManager) {
 		int highestPrior = 0;
 		ProtectedRegion pRegion = null;
 		final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
@@ -558,8 +558,8 @@ public class ClaimServiceImpl implements ClaimService {
 			}
 			if(pRegion != null) {
 				if (pRegion.getOwners().contains(player.getName()) || pRegion.getOwners().contains(player.getUniqueId())) {
-					pRegion.getMembers().addPlayer(member);
-					player.sendMessage(Configuration.PREFIX + "Added " + member + " to the claim!");
+					pRegion.getMembers().addPlayer(member.getUniqueId());
+					player.sendMessage(Configuration.PREFIX + "Added " + member.getName() + " to the claim!");
 				} else {
 					player.sendMessage(Configuration.PREFIX + "You are not an admin of this claim!");
 				}
@@ -572,7 +572,7 @@ public class ClaimServiceImpl implements ClaimService {
 	}
 
 	@Override
-	public void removeMember(final Player player, final String member, final RegionManager regionManager) {
+	public void removeMember(final Player player, final CMIUser member, final RegionManager regionManager) {
 		int highestPrior = 0;
 		ProtectedRegion pRegion = null;
 		final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
@@ -588,8 +588,9 @@ public class ClaimServiceImpl implements ClaimService {
 			}
 			if(pRegion != null) {
 				if (pRegion.getOwners().contains(player.getName()) || pRegion.getOwners().contains(player.getUniqueId())) {
-					pRegion.getMembers().removePlayer(member);
-					player.sendMessage(Configuration.PREFIX + "Removed " + member + " from the claim!");
+					pRegion.getMembers().removePlayer(member.getUniqueId());
+					pRegion.getOwners().removePlayer(member.getUniqueId());
+					player.sendMessage(Configuration.PREFIX + "Removed " + member.getName() + " from the claim!");
 				} else {
 					player.sendMessage(Configuration.PREFIX + "You are not an owner of this claim!");
 				}
@@ -603,7 +604,7 @@ public class ClaimServiceImpl implements ClaimService {
 
 
 	@Override
-	public void addAdmin(final Player player, final String owner, final RegionManager regionManager) {
+	public void addAdmin(final Player player, final CMIUser owner, final RegionManager regionManager) {
 		int highestPrior = 0;
 		ProtectedRegion pRegion = null;
 		final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
@@ -621,8 +622,8 @@ public class ClaimServiceImpl implements ClaimService {
 				String[] regionName = pRegion.getId().split("_");
 				Player claimOwner = Bukkit.getPlayer(UUID.fromString(regionName[1]));
 				if (player.equals(claimOwner)) {
-					pRegion.getOwners().addPlayer(owner);
-					player.sendMessage(Configuration.PREFIX + "Added " + owner + " as an admin!");
+					pRegion.getOwners().addPlayer(owner.getUniqueId());
+					player.sendMessage(Configuration.PREFIX + "Added " + owner.getName() + " as an admin!");
 				} else {
 					player.sendMessage(Configuration.PREFIX + "You are not the creator of this claim!");
 				}
@@ -635,7 +636,7 @@ public class ClaimServiceImpl implements ClaimService {
 	}
 
 	@Override
-	public void removeAdmin(final Player player, final String owner, final RegionManager regionManager) {
+	public void removeAdmin(final Player player, final CMIUser owner, final RegionManager regionManager) {
 		int highestPrior = 0;
 		ProtectedRegion pRegion = null;
 		final ApplicableRegionSet regionList = regionManager.getApplicableRegions(BlockVector3.at(player.getLocation().getX(),
@@ -653,8 +654,8 @@ public class ClaimServiceImpl implements ClaimService {
 				String[] regionName = pRegion.getId().split("_");
 				Player claimOwner = Bukkit.getPlayer(UUID.fromString(regionName[1]));
 				if (player.equals(claimOwner)) {
-					pRegion.getOwners().removePlayer(owner);
-					player.sendMessage(Configuration.PREFIX + "Removed " + owner + " as an admin!");
+					pRegion.getOwners().removePlayer(owner.getUniqueId());
+					player.sendMessage(Configuration.PREFIX + "Removed " + owner.getName() + " as an admin!");
 				} else {
 					player.sendMessage(Configuration.PREFIX + "You are not the creator of this claim!");
 				}
@@ -700,7 +701,7 @@ public class ClaimServiceImpl implements ClaimService {
 			parentRegion.setPriority(1);
 			parentRegion.setMembers(members);
 			if (!owners.contains(user.getName()) || !owners.contains(user.getUniqueId())) {
-				owners.addPlayer(user.getName());
+				owners.addPlayer(user.getUniqueId());
 			}
 			parentRegion.setOwners(owners);
 		} else {
@@ -714,7 +715,7 @@ public class ClaimServiceImpl implements ClaimService {
 			parentRegion.setFlags(flags);
 			parentRegion.setMembers(members);
 			if (!owners.contains(user.getName()) || !owners.contains(user.getUniqueId())) {
-				owners.addPlayer(user.getName());
+				owners.addPlayer(user.getUniqueId());
 			}
 			parentRegion.setOwners(owners);
 		}
@@ -758,7 +759,7 @@ public class ClaimServiceImpl implements ClaimService {
 					newRegion.setPriority(2);
 					newRegion.setMembers(members);
 					if (!owners.contains(user.getName()) || !owners.contains(user.getUniqueId())) {
-						owners.addPlayer(user.getName());
+						owners.addPlayer(user.getUniqueId());
 					}
 					newRegion.setOwners(owners);
 					try {
@@ -777,7 +778,7 @@ public class ClaimServiceImpl implements ClaimService {
 					newRegion.setPriority(2);
 					newRegion.setMembers(members);
 					if (!owners.contains(user.getName()) || !owners.contains(user.getUniqueId())) {
-						owners.addPlayer(user.getName());
+						owners.addPlayer(user.getUniqueId());
 					}
 					newRegion.setOwners(owners);
 					try {
@@ -1494,13 +1495,13 @@ public class ClaimServiceImpl implements ClaimService {
 					final BlockVector3 p2 = region.getMaximumPoint();
 					ProtectedRegion newRegion;
 					if(player.getFacing() == BlockFace.NORTH) {
-						newRegion = new ProtectedCuboidRegion(region.getId(), p1.subtract(0,-64, amount), p2);
+						newRegion = new ProtectedCuboidRegion(region.getId(), p1.subtract(0,0, amount), p2);
 					} else if(player.getFacing() == BlockFace.SOUTH){
-						newRegion = new ProtectedCuboidRegion(region.getId(), p1, p2.add(0,-64, amount));
+						newRegion = new ProtectedCuboidRegion(region.getId(), p1, p2.add(0,0, amount));
 					} else if(player.getFacing() == BlockFace.WEST){
-						newRegion = new ProtectedCuboidRegion(region.getId(), p1.subtract(amount,-64,0), p2);
+						newRegion = new ProtectedCuboidRegion(region.getId(), p1.subtract(amount,0,0), p2);
 					} else if(player.getFacing() == BlockFace.EAST) {
-						newRegion = new ProtectedCuboidRegion(region.getId(),p1, p2.add(amount,-64, 0));
+						newRegion = new ProtectedCuboidRegion(region.getId(),p1, p2.add(amount,0, 0));
 					} else {
 						player.sendMessage(Configuration.PREFIX+"Something went wrong! Please contact an administrator.");
 						return false;

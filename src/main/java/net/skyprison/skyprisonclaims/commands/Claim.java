@@ -178,28 +178,40 @@ public class Claim implements CommandExecutor {
 						break;
 					case "addmember":
 						if (args.length >= 2 && (args[1] != null)) {
-							claimService.addMember(player, args[1], regionManager);
+							if(CMI.getInstance().getPlayerManager().getUser(args[1]) != null)
+								claimService.addMember(player, CMI.getInstance().getPlayerManager().getUser(args[1]), regionManager);
+							else
+								player.sendMessage(plugin.colourMessage("&cPlayer doesnt exist!"));
 						} else {
 							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim addmember <player>"));
 						}
 						break;
 					case "removemember":
 						if (args.length >= 2 && (args[1] != null)) {
-							claimService.removeMember(player, args[1], regionManager);
+							if(CMI.getInstance().getPlayerManager().getUser(args[1]) != null)
+								claimService.removeMember(player, CMI.getInstance().getPlayerManager().getUser(args[1]), regionManager);
+							else
+								player.sendMessage(plugin.colourMessage("&cPlayer doesnt exist!"));
 						} else {
 							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim removemember <player>"));
 						}
 						break;
 					case "addadmin":
 						if (args.length >= 2 && (args[1] != null)) {
-							claimService.addAdmin(player, args[1], regionManager);
+							if(CMI.getInstance().getPlayerManager().getUser(args[1]) != null)
+								claimService.addAdmin(player, CMI.getInstance().getPlayerManager().getUser(args[1]), regionManager);
+							else
+								player.sendMessage(plugin.colourMessage("&cPlayer doesnt exist!"));
 						} else {
 							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim addadmin <player>"));
 						}
 						break;
 					case "removeadmin":
 						if (args.length >= 2 && (args[1] != null)) {
-							claimService.removeAdmin(player, args[1], regionManager);
+							if(CMI.getInstance().getPlayerManager().getUser(args[1]) != null)
+								claimService.removeAdmin(player, CMI.getInstance().getPlayerManager().getUser(args[1]), regionManager);
+							else
+								player.sendMessage(plugin.colourMessage("&cPlayer doesnt exist!"));
 						} else {
 							player.sendMessage(plugin.colourMessage("&cCorrect usage: /claim create <removeadmin>"));
 						}

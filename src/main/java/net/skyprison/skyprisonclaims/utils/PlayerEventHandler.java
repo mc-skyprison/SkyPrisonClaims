@@ -760,11 +760,16 @@ public class PlayerEventHandler implements Listener {
 									if (region.getFlag(Flags.ITEM_PICKUP) == StateFlag.State.ALLOW) {
 										region.setFlag(Flags.ITEM_PICKUP, StateFlag.State.DENY);
 										region.setFlag(Flags.ITEM_PICKUP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
+										region.setFlag(Flags.ITEM_DROP, StateFlag.State.DENY);
+										region.setFlag(Flags.ITEM_DROP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
 									} else if (region.getFlag(Flags.ITEM_PICKUP) == StateFlag.State.DENY) {
 										region.getFlags().remove(Flags.ITEM_PICKUP);
+										region.getFlags().remove(Flags.ITEM_DROP);
 									} else {
 										region.setFlag(Flags.ITEM_PICKUP, StateFlag.State.DENY);
 										region.setFlag(Flags.ITEM_PICKUP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
+										region.setFlag(Flags.ITEM_DROP, StateFlag.State.DENY);
+										region.setFlag(Flags.ITEM_DROP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
 									}
 								} else if (event.isRightClick()) {
 									region.getFlags().remove(Flags.ITEM_PICKUP);

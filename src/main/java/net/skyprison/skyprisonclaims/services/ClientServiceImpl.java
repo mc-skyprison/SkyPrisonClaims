@@ -1,12 +1,6 @@
 package net.skyprison.skyprisonclaims.services;
 
-import com.Zrips.sv.AreaShapes.CuboidArea;
-import com.Zrips.sv.AreaShapes.svUpdateType;
-import com.Zrips.sv.AreaShapes.svVisualCuboid;
-import com.Zrips.sv.Containers.*;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
-import net.Zrips.CMILib.Effects.CMIEffectManager;
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -23,7 +17,7 @@ public class ClientServiceImpl implements ClientService {
 
 	@Override
 	public void displayClaimBorder(final Player player, final ProtectedRegion region) {
-		final int minX = region.getMinimumPoint().getBlockX();
+/*		final int minX = region.getMinimumPoint().getBlockX();
 		final int minY = region.getMinimumPoint().getBlockY();
 		final int minZ = region.getMinimumPoint().getBlockZ();
 		final int maxX = region.getMaximumPoint().getBlockX();
@@ -50,7 +44,7 @@ public class ClientServiceImpl implements ClientService {
 		anEffect.setRow(1.0);
 		newCuboid.setEffect(svEffectType.Effect1, anEffect);
 		newCuboid.addUpdateType(svUpdateType.move4blocks);
-		newCuboid.startRender();
+		newCuboid.startRender();*/
 	}
 
 	@Override
@@ -64,11 +58,7 @@ public class ClientServiceImpl implements ClientService {
 	}
 	@Override
 	public String getPlayerChatLock(final Player player) {
-		if(chatLock.containsKey(player.getUniqueId())) {
-			return chatLock.get(player.getUniqueId());
-		} else {
-			return null;
-		}
+		return chatLock.getOrDefault(player.getUniqueId(), null);
 	}
 
 	@Override
@@ -83,11 +73,7 @@ public class ClientServiceImpl implements ClientService {
 
 	@Override
 	public Boolean getPlayerNoSkyBedrock(final Player player) {
-		if(noSkyBedrock.containsKey(player.getUniqueId())) {
-			return noSkyBedrock.get(player.getUniqueId());
-		} else {
-			return false;
-		}
+		return noSkyBedrock.getOrDefault(player.getUniqueId(), false);
 	}
 
 	@Override
@@ -102,10 +88,6 @@ public class ClientServiceImpl implements ClientService {
 
 	@Override
 	public Boolean getPolygonalStatus(Player player) {
-		if(customShape.containsKey(player.getUniqueId())) {
-			return customShape.get(player.getUniqueId());
-		} else {
-			return false;
-		}
+		return customShape.getOrDefault(player.getUniqueId(), false);
 	}
 }

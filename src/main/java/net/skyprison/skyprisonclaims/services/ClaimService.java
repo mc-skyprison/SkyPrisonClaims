@@ -1,5 +1,6 @@
 package net.skyprison.skyprisonclaims.services;
 
+import com.Zrips.CMI.Containers.CMIUser;
 import com.sk89q.worldedit.regions.RegionSelector;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
@@ -25,15 +26,15 @@ public interface ClaimService {
 
 	void getClaimInfoFromPlayerPosition(Player player, RegionManager regionManager);
 
-	void addMember(Player player, String member, RegionManager regionManager);
+	void addMember(Player player, CMIUser member, RegionManager regionManager);
 
-	void removeMember(Player player, String member, RegionManager regionManager);
+	void removeMember(Player player, CMIUser member, RegionManager regionManager);
 
 	void createFlagGUI(Player player, ProtectedRegion region);
 
-	void addAdmin(Player player, String owner, RegionManager regionManager);
+	void addAdmin(Player player, CMIUser owner, RegionManager regionManager);
 
-	void removeAdmin(Player player, String owner, RegionManager regionManager);
+	void removeAdmin(Player player, CMIUser owner, RegionManager regionManager);
 
 	void transferOwner(Player player, String claimName, String owner, RegionManager regionManager);
 

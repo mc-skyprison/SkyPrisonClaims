@@ -3,6 +3,7 @@ package net.skyprison.skyprisonclaims.commands;
 import com.Zrips.CMI.CMI;
 import com.Zrips.CMI.Containers.CMIUser;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
+import com.sk89q.worldguard.domains.DefaultDomain;
 import net.skyprison.skyprisonclaims.SkyPrisonClaims;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
@@ -21,6 +22,10 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 public class ClaimAdmin implements CommandExecutor {
 
@@ -37,6 +42,28 @@ public class ClaimAdmin implements CommandExecutor {
 			final RegionManager regionManager = regionContainer.get(BukkitAdapter.adapt(player.getWorld()));
 			if (args.length > 0) {
 				switch(args[0].toLowerCase()) {
+					case "updateuuid":
+						for(ProtectedRegion region : regionContainer.get(BukkitAdapter.adapt(Bukkit.getWorld("world_free"))).getRegions().values()) {
+							Set<String> owners = region.getOwners().getPlayers();
+							Set<String> members = region.getMembers().getPlayers();
+							for(String member : members) {
+								if(CMI.getInstance().getPlayerManager().getUser(member) != null) {
+									CMIUser user = CMI.getInstance().getPlayerManager().getUser(member);
+									region.getMembers().addPlayer(user.getUniqueId());
+									region.getMembers().removePlayer(member);
+								}
+							}
+
+							for(String owner : owners) {
+								if(CMI.getInstance().getPlayerManager().getUser(owner) != null) {
+									CMIUser user = CMI.getInstance().getPlayerManager().getUser(owner);
+									region.getOwners().addPlayer(user.getUniqueId());
+									region.getOwners().removePlayer(owner);
+								}
+							}
+							player.sendMessage("Updated " + region.getId());
+						}
+						break;
 					case "help":
 						player.sendMessage(ChatColor.YELLOW+"-------------------- Claim Admin --------------------");
 						player.sendMessage(ChatColor.YELLOW+"/claimadmin reload " + ChatColor.WHITE + "- Reloads configuration.");
