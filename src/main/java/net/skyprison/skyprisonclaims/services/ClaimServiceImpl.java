@@ -76,7 +76,7 @@ public class ClaimServiceImpl implements ClaimService {
 				if (overlap.size() != 0) {
 					for (final ProtectedRegion region : overlap) {
 						if (region.containsAny(regionSel.getPoints())) {
-							if (region.getOwners().contains(player.getName())) {
+							if (region.getOwners().contains(player.getUniqueId())) {
 								if (region.getParent() == null) {
 									parentRegion = region;
 								} else {
@@ -210,7 +210,7 @@ public class ClaimServiceImpl implements ClaimService {
 					for (final ProtectedRegion region : overlap) {
 						if (region.contains(p1.getBlockX(), p1.getBlockY(), p1.getBlockZ()) && region.contains(p2.getBlockX(), p2.getBlockY(), p2.getBlockZ())
 								&& region.contains(p1.getBlockX(), p1.getBlockY(), p2.getBlockZ()) && region.contains(p2.getBlockX(), p2.getBlockY(), p1.getBlockZ())) {
-							if (region.getOwners().contains(player.getName())) {
+							if (region.getOwners().contains(player.getUniqueId())) {
 								if (region.getParent() == null) {
 									parentRegion = region;
 								} else {
@@ -393,8 +393,8 @@ public class ClaimServiceImpl implements ClaimService {
 				}
 			}
 			if(pRegion != null) {
-				if (pRegion.getOwners().contains(player.getName()) || pRegion.getOwners().contains(player.getUniqueId())) {
-					if(!pRegion.getOwners().contains(entryPlayer.getName()) && !pRegion.getOwners().contains(entryPlayer.getUniqueId()) && !pRegion.getMembers().contains(entryPlayer.getName()) && !pRegion.getMembers().contains(entryPlayer.getUniqueId())) {
+				if (pRegion.getOwners().contains(player.getUniqueId())) {
+					if(!pRegion.getOwners().contains(entryPlayer.getUniqueId()) && !pRegion.getMembers().contains(entryPlayer.getUniqueId())) {
 						String[] rName = pRegion.getId().split("_");
 						OfflinePlayer owner = CMI.getInstance().getPlayerManager().getUser(UUID.fromString(rName[1])).getOfflinePlayer();
 						final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(owner));
@@ -442,7 +442,7 @@ public class ClaimServiceImpl implements ClaimService {
 	@Override
 	public void getClaimInfoById(final Player player, final String claimId, final RegionManager regionManager) {
 		final ProtectedRegion region = regionManager.getRegions().get("claim_" + player.getUniqueId() + "_" + claimId);
-		if (region != null && (region.getOwners().contains(player.getName()) || (region.getOwners().contains(player.getUniqueId())))) {
+		if (region != null && region.getOwners().contains(player.getUniqueId())) {
 			player.sendMessage(ChatColor.GOLD + "---=== Claim information ===---");
 			player.sendMessage(ChatColor.YELLOW + "Name: " + region.getId().substring(43));
 			if(region.getParent() != null)
@@ -505,7 +505,6 @@ public class ClaimServiceImpl implements ClaimService {
 				player.sendMessage(ChatColor.YELLOW + "Coords: " + pRegion.getMinimumPoint() + " - " + pRegion.getMaximumPoint());
 				String[] regionId = pRegion.getId().split("_");
 				OfflinePlayer claimOwner = Bukkit.getOfflinePlayer(UUID.fromString(regionId[1]));
-				assert claimOwner != null;
 				player.sendMessage(ChatColor.YELLOW + "Owner: " + claimOwner.getName());
 				StringBuilder admins = new StringBuilder();
 				Iterator<UUID> owners = pRegion.getOwners().getUniqueIds().iterator();
@@ -557,7 +556,7 @@ public class ClaimServiceImpl implements ClaimService {
 				}
 			}
 			if(pRegion != null) {
-				if (pRegion.getOwners().contains(player.getName()) || pRegion.getOwners().contains(player.getUniqueId())) {
+				if (pRegion.getOwners().contains(player.getUniqueId())) {
 					pRegion.getMembers().addPlayer(member.getUniqueId());
 					player.sendMessage(Configuration.PREFIX + "Added " + member.getName() + " to the claim!");
 				} else {
@@ -587,7 +586,7 @@ public class ClaimServiceImpl implements ClaimService {
 				}
 			}
 			if(pRegion != null) {
-				if (pRegion.getOwners().contains(player.getName()) || pRegion.getOwners().contains(player.getUniqueId())) {
+				if (pRegion.getOwners().contains(player.getUniqueId())) {
 					pRegion.getMembers().removePlayer(member.getUniqueId());
 					pRegion.getOwners().removePlayer(member.getUniqueId());
 					player.sendMessage(Configuration.PREFIX + "Removed " + member.getName() + " from the claim!");
@@ -884,7 +883,7 @@ public class ClaimServiceImpl implements ClaimService {
 		String[] regionFlags = flagName.split("/");
 		ProtectedRegion region = regions.getRegion(regionFlags[1]);
 		assert region != null;
-		if (region.getOwners().contains(player.getName()) || region.getOwners().contains(player.getUniqueId())) {
+		if (region.getOwners().contains(player.getUniqueId())) {
 			if(regionFlags[0].equalsIgnoreCase("time-lock")) {
 				region.setFlag(Flags.TIME_LOCK, flagValue);
 				player.sendMessage(Configuration.PREFIX + "Successfully set the Time Lock to " + flagValue);

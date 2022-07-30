@@ -516,7 +516,7 @@ public class PlayerEventHandler implements Listener {
 										region.setFlag(Flags.ENTRY, StateFlag.State.DENY);
 										for (Player oPlayer : Bukkit.getOnlinePlayers()) {
 											if (oPlayer.getWorld().getName().equalsIgnoreCase("world_free")) {
-												if(!region.getMembers().contains(oPlayer.getName()) && !region.getOwners().contains(oPlayer.getName())) {
+												if(!region.getMembers().contains(oPlayer.getUniqueId()) && !region.getOwners().contains(oPlayer.getUniqueId())) {
 													org.bukkit.Location location = oPlayer.getLocation();
 													BlockVector3 v = BlockVector3.at(location.getX(), location.getY(), location.getZ());
 													World world = oPlayer.getWorld();
@@ -567,7 +567,7 @@ public class PlayerEventHandler implements Listener {
 										region.setFlag(Flags.ENTRY, StateFlag.State.DENY);
 										for (Player oPlayer : Bukkit.getOnlinePlayers()) {
 											if (oPlayer.getWorld().getName().equalsIgnoreCase("world_free")) {
-												if(!region.getMembers().contains(oPlayer.getName()) && !region.getOwners().contains(oPlayer.getName())) {
+												if(!region.getMembers().contains(oPlayer.getUniqueId()) && !region.getOwners().contains(oPlayer.getUniqueId())) {
 													org.bukkit.Location location = oPlayer.getLocation();
 													BlockVector3 v = BlockVector3.at(location.getX(), location.getY(), location.getZ());
 													World world = oPlayer.getWorld();
