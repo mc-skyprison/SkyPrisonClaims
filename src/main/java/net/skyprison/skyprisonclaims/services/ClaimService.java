@@ -34,6 +34,12 @@ public interface ClaimService {
 
 	void createMobsGUI(Player player, ProtectedRegion region);
 
+    void createPassiveMobsGUI(Player player, ProtectedRegion region);
+
+    void createNeutralMobsGUI(Player player, ProtectedRegion region);
+
+    void createHostileMobsGUI(Player player, ProtectedRegion region);
+
 	void addAdmin(Player player, CMIUser owner, RegionManager regionManager);
 
 	void removeAdmin(Player player, CMIUser owner, RegionManager regionManager);

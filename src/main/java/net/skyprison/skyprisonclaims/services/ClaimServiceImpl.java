@@ -20,6 +20,7 @@ import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedPolygonalRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
+import me.arcaniax.hdb.api.HeadDatabaseAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -1481,7 +1482,7 @@ public class ClaimServiceImpl implements ClaimService {
 
 	@Override
 	public void createMobsGUI(Player player, ProtectedRegion region) {
-		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Allow/Deny Mob Spawn for: " + region.getId().substring(43));
+		Inventory flagsGUI = Bukkit.createInventory(null, 27, ChatColor.GREEN + "Allow/Deny Mob Spawns for: " + region.getId().substring(43));
 		ItemStack paneGray = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
 		ItemMeta paneMetaG = paneGray.getItemMeta();
 		paneMetaG.setDisplayName(" ");
@@ -1490,6 +1491,7 @@ public class ClaimServiceImpl implements ClaimService {
 		ItemMeta paneMetaW = paneWhite.getItemMeta();
 		paneMetaW.setDisplayName(" ");
 		paneWhite.setItemMeta(paneMetaW);
+        HeadDatabaseAPI hAPI = new HeadDatabaseAPI();
 		for (int i = 0; i < 54; i++) {
 			if(i == 0) {
 				ItemStack startPane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
@@ -1499,35 +1501,81 @@ public class ClaimServiceImpl implements ClaimService {
 				startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
 				startPane.setItemMeta(startMeta);
 				flagsGUI.setItem(i, startPane);
-			} else if (i <= 6 || i == 8 || i >= 38 && i <= 42 || i >= 45 && i <= 51 || i == 53) {
+			} else if (i <= 9 || i == 11 || i == 13 || i >= 17) {
 				flagsGUI.setItem(i, paneGray);
-			} else if (i == 7 || i == 16 || i == 25 || i == 34 || i == 43 || i == 52) {
-				flagsGUI.setItem(i, paneWhite);
 			}
-			if (i == 8) {
-				ItemStack flag = new ItemStack(Material.WHEAT_SEEDS);
+			if (i == 10) {
+				ItemStack flag = new ItemStack(Material.NETHER_STAR);
 				ItemMeta flagMeta = flag.getItemMeta();
-				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Crop Trampling");
-				ArrayList<String> lore = new ArrayList<>();
-				lore.add(ChatColor.DARK_GREEN + "[DONOR]");
-				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Crop Trampling in your claim!");
-				lore.add("");
-				if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.ALLOW) {
-					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-				} else if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.DENY) {
-					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-				} else {
-					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-				}
-				flagMeta.setLore(lore);
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Return to Flags GUI");
 				flag.setItemMeta(flagMeta);
 				flagsGUI.setItem(i, flag);
-			}
+			} else if (i == 12) {
+                ItemStack flag = new ItemStack(Material.RED_CONCRETE);
+                ItemMeta flagMeta = flag.getItemMeta();
+
+                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Enabled/Disable Mob Spawning");
+                ArrayList<String> lore = new ArrayList<>();
+                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable all mob spawning from your claim!");
+                lore.add("");
+                if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.ALLOW) {
+                    lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+                } else if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.DENY) {
+                    lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+                } else {
+                    lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "PER MOB ENABLED");
+                }
+                flagMeta.setLore(lore);
+                flag.setItemMeta(flagMeta);
+                flagsGUI.setItem(i, flag);
+            } else if (i == 14) {
+                ItemStack flag = hAPI.getItemHead("25778");
+                ItemMeta flagMeta = flag.getItemMeta();
+                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Passive Mobs");
+                ArrayList<String> lore = new ArrayList<>();
+                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Passive Mobs GUI!");
+                flagMeta.setLore(lore);
+                flag.setItemMeta(flagMeta);
+                flagsGUI.setItem(i, flag);
+            } else if (i == 15) {
+                ItemStack flag = hAPI.getItemHead("31266");
+                ItemMeta flagMeta = flag.getItemMeta();
+                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Neutral Mobs");
+                ArrayList<String> lore = new ArrayList<>();
+                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Neutral Mobs GUI!");
+                flagMeta.setLore(lore);
+                flag.setItemMeta(flagMeta);
+                flagsGUI.setItem(i, flag);
+            } else if (i == 16) {
+                ItemStack flag = new ItemStack(Material.ZOMBIE_HEAD);
+                ItemMeta flagMeta = flag.getItemMeta();
+                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Hostile Mobs");
+                ArrayList<String> lore = new ArrayList<>();
+                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Hostile Mobs GUI!");
+                flagMeta.setLore(lore);
+                flag.setItemMeta(flagMeta);
+                flagsGUI.setItem(i, flag);
+            }
 		}
 		player.openInventory(flagsGUI);
 	}
 
-	@Override
+    @Override
+    public void createPassiveMobsGUI(Player player, ProtectedRegion region) {
+
+    }
+
+    @Override
+    public void createNeutralMobsGUI(Player player, ProtectedRegion region) {
+
+    }
+
+    @Override
+    public void createHostileMobsGUI(Player player, ProtectedRegion region) {
+
+    }
+
+    @Override
 	public boolean expandClaim(final Player player, final int amount, final RegionManager regionManager) {
 		final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(player));
 		final int totalClaimBlocksInUse = playerConfig.getInt("player.totalClaimBlocksInUse");
