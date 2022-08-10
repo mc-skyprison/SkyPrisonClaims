@@ -34,6 +34,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.*;
@@ -98,7 +99,7 @@ public class PlayerEventHandler implements Listener {
 	}*/
 
 	@EventHandler
-	public void elytraFlight(PlayerMoveEvent event) {
+	public void onPlayerMove(PlayerMoveEvent event) {
 		Player player = event.getPlayer();
 		org.bukkit.Location fromLoc = event.getFrom();
 		org.bukkit.Location toLoc = event.getTo();
@@ -161,7 +162,7 @@ public class PlayerEventHandler implements Listener {
 	}
 
 	@EventHandler
-	public void lavaBucketMine(PlayerBucketEmptyEvent event) {
+	public void onPlayerBucketEmpty(PlayerBucketEmptyEvent event) {
 		if(!event.isCancelled()) {
 			Player player = event.getPlayer();
 			World pWorld = player.getWorld();
@@ -185,7 +186,7 @@ public class PlayerEventHandler implements Listener {
 	}
 
 	@EventHandler
-	public void mineLogin(PlayerLoginEvent event) {
+	public void onPlayerLogin(PlayerLoginEvent event) {
 		if(!clientService.getPolygonalStatus(event.getPlayer())) {
 			LocalSession session = WorldEdit.getInstance().getSessionManager().get(BukkitAdapter.adapt(event.getPlayer()));
 			RegionSelector newSelector = new CuboidRegionSelector(session.getRegionSelector(BukkitAdapter.adapt(event.getPlayer().getWorld())));
@@ -220,9 +221,14 @@ public class PlayerEventHandler implements Listener {
 		}
 	}
 
+	@EventHandler
+	public void onEntitySpawn(EntitySpawnEvent event) {
+
+	}
+
 
 	@EventHandler
-	public void invClick(InventoryClickEvent event) {
+	public void onInventoryClick(InventoryClickEvent event) {
 		if (ChatColor.stripColor(event.getView().getTitle()).contains("Flags")) {
 			if (event.getCurrentItem() != null) {
 				event.setCancelled(true);
@@ -315,7 +321,7 @@ public class PlayerEventHandler implements Listener {
 								ClaimService.createFlagGUI(player, region);
 								break;
 							case 12:
-								if (event.isLeftClick()) {
+/*								if (event.isLeftClick()) {
 									if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.ALLOW) {
 										region.setFlag(Flags.MOB_SPAWNING, StateFlag.State.DENY);
 									} else if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.DENY) {
@@ -326,7 +332,9 @@ public class PlayerEventHandler implements Listener {
 								} else if (event.isRightClick()) {
 									region.getFlags().remove(Flags.MOB_SPAWNING);
 								}
-								ClaimService.createFlagGUI(player, region);
+								ClaimService.createFlagGUI(player, region);*/
+
+								ClaimService.createMobsGUI(player, region);
 								break;
 							case 13:
 								if (event.isLeftClick()) {
@@ -816,7 +824,7 @@ public class PlayerEventHandler implements Listener {
 	}
 
 	@EventHandler
-	public void onPlayerChat(AsyncPlayerChatEvent event) {
+	public void onAsyncPlayerChat(AsyncPlayerChatEvent event) {
 		Player player = event.getPlayer();
 		if(clientService.getPlayerChatLock(player) != null) {
 			event.setCancelled(true);

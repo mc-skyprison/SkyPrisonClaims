@@ -1480,6 +1480,54 @@ public class ClaimServiceImpl implements ClaimService {
 	}
 
 	@Override
+	public void createMobsGUI(Player player, ProtectedRegion region) {
+		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Allow/Deny Mob Spawn for: " + region.getId().substring(43));
+		ItemStack paneGray = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+		ItemMeta paneMetaG = paneGray.getItemMeta();
+		paneMetaG.setDisplayName(" ");
+		paneGray.setItemMeta(paneMetaG);
+		ItemStack paneWhite = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
+		ItemMeta paneMetaW = paneWhite.getItemMeta();
+		paneMetaW.setDisplayName(" ");
+		paneWhite.setItemMeta(paneMetaW);
+		for (int i = 0; i < 54; i++) {
+			if(i == 0) {
+				ItemStack startPane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+				ItemMeta startMeta = startPane.getItemMeta();
+				startMeta.setDisplayName(" ");
+				NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+				startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+				startPane.setItemMeta(startMeta);
+				flagsGUI.setItem(i, startPane);
+			} else if (i <= 6 || i == 8 || i >= 38 && i <= 42 || i >= 45 && i <= 51 || i == 53) {
+				flagsGUI.setItem(i, paneGray);
+			} else if (i == 7 || i == 16 || i == 25 || i == 34 || i == 43 || i == 52) {
+				flagsGUI.setItem(i, paneWhite);
+			}
+			if (i == 8) {
+				ItemStack flag = new ItemStack(Material.WHEAT_SEEDS);
+				ItemMeta flagMeta = flag.getItemMeta();
+				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Crop Trampling");
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(ChatColor.DARK_GREEN + "[DONOR]");
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Crop Trampling in your claim!");
+				lore.add("");
+				if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.ALLOW) {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				} else if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.DENY) {
+					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+				} else {
+					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+				}
+				flagMeta.setLore(lore);
+				flag.setItemMeta(flagMeta);
+				flagsGUI.setItem(i, flag);
+			}
+		}
+		player.openInventory(flagsGUI);
+	}
+
+	@Override
 	public boolean expandClaim(final Player player, final int amount, final RegionManager regionManager) {
 		final FileConfiguration playerConfig = YamlConfiguration.loadConfiguration(FileService.getPlayerFile(player));
 		final int totalClaimBlocksInUse = playerConfig.getInt("player.totalClaimBlocksInUse");
