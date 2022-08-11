@@ -5,6 +5,7 @@ import com.sk89q.worldedit.regions.RegionSelector;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -34,11 +35,11 @@ public interface ClaimService {
 
 	void createMobsGUI(Player player, ProtectedRegion region);
 
-    void createPassiveMobsGUI(Player player, ProtectedRegion region);
+    void createAllowedMobsGUI(Player player, ProtectedRegion region, Integer page);
 
-    void createNeutralMobsGUI(Player player, ProtectedRegion region);
+    void createDeniedMobsGUI(Player player, ProtectedRegion region, Integer page);
 
-    void createHostileMobsGUI(Player player, ProtectedRegion region);
+	String getMobHead(EntityType entity);
 
 	void addAdmin(Player player, CMIUser owner, RegionManager regionManager);
 

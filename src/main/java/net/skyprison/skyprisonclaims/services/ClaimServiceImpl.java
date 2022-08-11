@@ -31,6 +31,9 @@ import org.bukkit.*;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import net.skyprison.skyprisonclaims.utils.Configuration;
 import org.bukkit.inventory.Inventory;
@@ -927,6 +930,9 @@ public class ClaimServiceImpl implements ClaimService {
 				startMeta.setDisplayName(" ");
 				NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
 				startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+
+				NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+				startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-main");
 				startPane.setItemMeta(startMeta);
 				flagsGUI.setItem(i, startPane);
 			} else if (i <= 6 || i == 8 || i >= 38 && i <= 42 || i >= 45 && i <= 51 || i == 53) {
@@ -1492,26 +1498,29 @@ public class ClaimServiceImpl implements ClaimService {
 		paneMetaW.setDisplayName(" ");
 		paneWhite.setItemMeta(paneMetaW);
         HeadDatabaseAPI hAPI = new HeadDatabaseAPI();
-		for (int i = 0; i < 54; i++) {
+		for (int i = 0; i < 27; i++) {
 			if(i == 0) {
 				ItemStack startPane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
 				ItemMeta startMeta = startPane.getItemMeta();
 				startMeta.setDisplayName(" ");
 				NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
 				startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+
+				NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+				startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs");
 				startPane.setItemMeta(startMeta);
 				flagsGUI.setItem(i, startPane);
-			} else if (i <= 9 || i == 11 || i == 13 || i >= 17) {
+			} else if (i <= 10 || i == 13 || i >= 16) {
 				flagsGUI.setItem(i, paneGray);
 			}
-			if (i == 10) {
+			if (i == 11) {
 				ItemStack flag = new ItemStack(Material.NETHER_STAR);
 				ItemMeta flagMeta = flag.getItemMeta();
 				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Return to Flags GUI");
 				flag.setItemMeta(flagMeta);
 				flagsGUI.setItem(i, flag);
 			} else if (i == 12) {
-                ItemStack flag = new ItemStack(Material.RED_CONCRETE);
+                ItemStack flag = new ItemStack(Material.BROWN_CONCRETE);
                 ItemMeta flagMeta = flag.getItemMeta();
 
                 flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Enabled/Disable Mob Spawning");
@@ -1529,29 +1538,20 @@ public class ClaimServiceImpl implements ClaimService {
                 flag.setItemMeta(flagMeta);
                 flagsGUI.setItem(i, flag);
             } else if (i == 14) {
-                ItemStack flag = hAPI.getItemHead("25778");
+                ItemStack flag = new ItemStack(Material.BROWN_CONCRETE);
                 ItemMeta flagMeta = flag.getItemMeta();
-                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Passive Mobs");
+                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Enabled Mobs");
                 ArrayList<String> lore = new ArrayList<>();
-                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Passive Mobs GUI!");
+                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Enabled Mobs GUI!");
                 flagMeta.setLore(lore);
                 flag.setItemMeta(flagMeta);
                 flagsGUI.setItem(i, flag);
             } else if (i == 15) {
                 ItemStack flag = hAPI.getItemHead("31266");
                 ItemMeta flagMeta = flag.getItemMeta();
-                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Neutral Mobs");
+                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Disabled Mobs");
                 ArrayList<String> lore = new ArrayList<>();
-                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Neutral Mobs GUI!");
-                flagMeta.setLore(lore);
-                flag.setItemMeta(flagMeta);
-                flagsGUI.setItem(i, flag);
-            } else if (i == 16) {
-                ItemStack flag = new ItemStack(Material.ZOMBIE_HEAD);
-                ItemMeta flagMeta = flag.getItemMeta();
-                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Hostile Mobs");
-                ArrayList<String> lore = new ArrayList<>();
-                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Hostile Mobs GUI!");
+                lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Disabled Mobs GUI!");
                 flagMeta.setLore(lore);
                 flag.setItemMeta(flagMeta);
                 flagsGUI.setItem(i, flag);
@@ -1560,18 +1560,286 @@ public class ClaimServiceImpl implements ClaimService {
 		player.openInventory(flagsGUI);
 	}
 
-    @Override
-    public void createPassiveMobsGUI(Player player, ProtectedRegion region) {
+	@Override
+	public String getMobHead(EntityType entity) {
+		switch(entity.name().toUpperCase()) {
+			case "ELDER_GUARDIAN":
+				return "25357";
+			case "WITHER_SKELETON":
+				return "22400";
+			case "STRAY":
+				return "3244";
+			case "HUSK":
+				return "3245";
+			case "ZOMBIE_VILLAGER":
+				return "31537";
+			case "SKELETON_HORSE":
+				return "6013";
+			case "ZOMBIE_HORSE":
+				return "2913";
+			case "DONKEY":
+				return "24934";
+			case "MULE":
+				return "38016";
+			case "EVOKER":
+				return "26087";
+			case "VEX":
+				return "3080";
+			case "VINDICATOR":
+				return "28323";
+			case "ILLUSIONER":
+				return "23766";
+			case "CREEPER":
+				return "4169";
+			case "SKELETON":
+				return "8188";
+			case "SPIDER":
+				return "32706";
+			case "GIANT":
+				return "11665";
+			case "ZOMBIE":
+				return "41528";
+			case "SLIME":
+				return "30399";
+			case "GHAST":
+				return "321";
+			case "ZOMBIFIED_PIGLIN":
+				return "36388";
+			case "ENDERMAN":
+				return "318";
+			case "CAVE_SPIDER":
+				return "315";
+			case "SILVERFISH":
+				return "3936";
+			case "BLAZE":
+				return "322";
+			case "MAGMA_CUBE":
+				return "323";
+			case "ENDER_DRAGON":
+				return "53493";
+			case "WITHER":
+				return "32347";
+			case "BAT":
+				return "6607";
+			case "WITCH":
+				return "3864";
+			case "ENDERMITE":
+				return "7375";
+			case "GUARDIAN":
+				return "666";
+			case "SHULKER":
+				return "30627";
+			case "PIG":
+				return "25778";
+			case "SHEEP":
+				return "49688";
+			case "COW":
+				return "335";
+			case "CHICKEN":
+				return "27974";
+			case "SQUID":
+				return "27089";
+			case "WOLF":
+				return "38471";
+			case "MUSHROOM_COW":
+				return "339";
+			case "SNOWMAN":
+				return "342";
+			case "OCELOT":
+				return "340";
+			case "IRON_GOLEM":
+				return "341";
+			case "HORSE":
+				return "1154";
+			case "RABBIT":
+				return "49677";
+			case "POLAR_BEAR":
+				return "6398";
+			case "LLAMA":
+				return "49646";
+			case "PARROT":
+				return "49659";
+			case "VILLAGER":
+				return "30560";
+			case "TURTLE":
+				return "17929";
+			case "PHANTOM":
+				return "18091";
+			case "COD":
+				return "17898";
+			case "SALMON":
+				return "31623";
+			case "PUFFERFISH":
+				return "45707";
+			case "TROPICAL_FISH":
+				return "53856";
+			case "DROWNED":
+				return "15967";
+			case "DOLPHIN":
+				return "16799";
+			case "CAT":
+				return "4167";
+			case "PANDA":
+				return "19438";
+			case "PILLAGER":
+				return "25149";
+			case "RAVAGER":
+				return "28196";
+			case "TRADER_LLAMA":
+				return "53242";
+			case "WANDERING_TRADER":
+				return "25676";
+			case "FOX":
+				return "630";
+			case "BEE":
+				return "31260";
+			case "HOGLIN":
+				return "34783";
+			case "PIGLIN":
+				return "36066";
+			case "STRIDER":
+				return "48212";
+			case "ZOGLIN":
+				return "35932";
+			case "PIGLIN_BRUTE":
+				return "40777";
+			case "AXOLOTL":
+				return "41592";
+			case "GLOW_SQUID":
+				return "47965";
+			case "GOAT":
+				return "45810";
+			case "ALLAY":
+				return "51367";
+			case "FROG":
+				return "51343";
+			case "TADPOLE":
+				return "50682";
+			case "WARDEN":
+				return "47668";
+			default:
+				return null;
+		}
+	}
 
+    @Override
+    public void createAllowedMobsGUI(Player player, ProtectedRegion region, Integer page) {
+		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Allow/Deny Mob Spawns for: " + region.getId().substring(43));
+		ItemStack paneGray = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+		ItemMeta paneMetaG = paneGray.getItemMeta();
+		paneMetaG.setDisplayName(" ");
+		paneGray.setItemMeta(paneMetaG);
+
+		ItemStack paneBlack = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+		ItemMeta paneMetaB = paneBlack.getItemMeta();
+		paneMetaB.setDisplayName(" ");
+		paneGray.setItemMeta(paneMetaB);
+
+		HeadDatabaseAPI hAPI = new HeadDatabaseAPI();
+
+		EntityType[] allEntities = EntityType.values();
+
+		ArrayList<EntityType> mobs = new ArrayList<>();
+
+		for(EntityType entity : allEntities) {
+			if(entity.isAlive() && entity.isSpawnable())
+				if(!entity.equals(EntityType.PLAYER))
+					if(!entity.equals(EntityType.ARMOR_STAND))
+						mobs.add(entity);
+		}
+
+
+		Set<com.sk89q.worldedit.world.entity.EntityType> deniedEntities = region.getFlag(Flags.DENY_SPAWN);
+
+		if(deniedEntities != null && !deniedEntities.isEmpty()) {
+			ArrayList<EntityType> deniedEnts = new ArrayList<>();
+			for(com.sk89q.worldedit.world.entity.EntityType entity : deniedEntities) {
+				deniedEnts.add(BukkitAdapter.adapt(entity));
+			}
+			mobs.removeIf(deniedEnts::contains);
+		}
+
+		int totalPages = (int) Math.ceil(mobs.size() / 36.0);
+
+		ArrayList<EntityType> useMobs = new ArrayList<>();
+
+		for(int i = (36 * (page - 1)); i < 36 + (36 * (page - 1)); i++) {
+			if(mobs.size() > i) {
+				useMobs.add(mobs.get(i));
+			}
+		}
+
+		for(EntityType useMob : useMobs) {
+			Bukkit.getLogger().info(useMob.name());
+		}
+
+		int b = 0;
+
+		for (int i = 0; i < 54; i++) {
+			if (i < 36) {
+				ItemStack startPane = hAPI.getItemHead(getMobHead(useMobs.get(i)));
+				ItemMeta startMeta = startPane.getItemMeta();
+				startMeta.setDisplayName(useMobs.get(b).name());
+				NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
+				startMeta.getPersistentDataContainer().set(key3, PersistentDataType.STRING, useMobs.get(b).name());
+				if(i == 0) {
+					NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+					startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+
+					NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+					startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
+					startPane.setItemMeta(startMeta);
+					flagsGUI.setItem(i, startPane);
+				}
+				startPane.setItemMeta(startMeta);
+				flagsGUI.setItem(i, startPane);
+				b++;
+			} else {
+				if(i == 45) {
+					ItemStack flag = new ItemStack(Material.NETHER_STAR);
+					ItemMeta flagMeta = flag.getItemMeta();
+					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Return to Flags GUI");
+					flag.setItemMeta(flagMeta);
+					flagsGUI.setItem(i, flag);
+				} else if(i == 48) {
+					if(page != 1) {
+						ItemStack flag = new ItemStack(Material.PAPER);
+						ItemMeta flagMeta = flag.getItemMeta();
+						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Previous Page");
+						flag.setItemMeta(flagMeta);
+						flagsGUI.setItem(i, flag);
+					} else {
+						flagsGUI.setItem(i, paneGray);
+					}
+				} else if(i == 49) {
+					ItemStack flag = new ItemStack(Material.NETHER_STAR);
+					ItemMeta flagMeta = flag.getItemMeta();
+					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Return to Flags GUI");
+					flag.setItemMeta(flagMeta);
+					flagsGUI.setItem(i, flag);
+				} else if(i == 50) {
+					if(totalPages != page) {
+						ItemStack flag = new ItemStack(Material.PAPER);
+						ItemMeta flagMeta = flag.getItemMeta();
+						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Next Page");
+						flag.setItemMeta(flagMeta);
+						flagsGUI.setItem(i, flag);
+					} else {
+						flagsGUI.setItem(i, paneGray);
+					}
+				} else if(i <= 44) {
+					flagsGUI.setItem(i, paneBlack);
+				} else {
+					flagsGUI.setItem(i, paneGray);
+				}
+			}
+
+		}
+		player.openInventory(flagsGUI);
     }
 
     @Override
-    public void createNeutralMobsGUI(Player player, ProtectedRegion region) {
-
-    }
-
-    @Override
-    public void createHostileMobsGUI(Player player, ProtectedRegion region) {
+    public void createDeniedMobsGUI(Player player, ProtectedRegion region, Integer page) {
 
     }
 
