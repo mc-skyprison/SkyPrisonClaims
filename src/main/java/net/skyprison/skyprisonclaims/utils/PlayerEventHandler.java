@@ -7,8 +7,10 @@ import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.regions.RegionSelector;
 import com.sk89q.worldedit.regions.selector.CuboidRegionSelector;
 import com.sk89q.worldedit.regions.selector.RegionSelectorType;
+import com.sk89q.worldedit.world.entity.EntityType;
 import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.flags.RegionGroup;
+import com.sk89q.worldguard.protection.regions.RegionType;
 import net.milkbowl.vault.permission.Permission;
 import net.skyprison.skyprisonclaims.SkyPrisonClaims;
 import net.skyprison.skyprisonclaims.services.ClaimService;
@@ -221,22 +223,24 @@ public class PlayerEventHandler implements Listener {
 
 	@EventHandler
 	public void onInventoryClick(InventoryClickEvent event) {
-		if (ChatColor.stripColor(event.getView().getTitle()).contains("Flags")) {
-			if (event.getCurrentItem() != null) {
-				event.setCancelled(true);
-			}
-			if (event.getWhoClicked() instanceof Player) {
-				if(event.getClickedInventory().getItem(0) != null && !event.getClickedInventory().getItem(0).getPersistentDataContainer().isEmpty()) {
-					Player player = (Player) event.getWhoClicked();
-					RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-					RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
-					NamespacedKey regionKey = new NamespacedKey(plugin, "region-name");
-					NamespacedKey guiKey = new NamespacedKey(plugin, "gui-id");
+		if (event.getCurrentItem() != null) {
+			event.setCancelled(true);
+		}
+		if (event.getWhoClicked() instanceof Player) {
+			if(event.getClickedInventory().getItem(0) != null && !event.getClickedInventory().getItem(0).getPersistentDataContainer().isEmpty()) {
+				Player player = (Player) event.getWhoClicked();
+				RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+				RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+				NamespacedKey regionKey = new NamespacedKey(plugin, "region-name");
+				NamespacedKey guiKey = new NamespacedKey(plugin, "gui-id");
 
-					PersistentDataContainer regionData = Objects.requireNonNull(event.getClickedInventory().getItem(0)).getPersistentDataContainer();
-					String regionName = regionData.get(regionKey, PersistentDataType.STRING);
-					String guiId = regionData.get(guiKey, PersistentDataType.STRING);
+				PersistentDataContainer regionData = Objects.requireNonNull(event.getClickedInventory().getItem(0)).getPersistentDataContainer();
+				String regionName = regionData.get(regionKey, PersistentDataType.STRING);
+				String guiId = regionData.get(guiKey, PersistentDataType.STRING);
 
+				ProtectedRegion region = regions.getRegion(regionName);
+				assert region != null;
+				if (region.getOwners().contains(player.getUniqueId())) {
 					if (guiId.equalsIgnoreCase("flags-main")) {
 						boolean hasFlag = false;
 						RegisteredServiceProvider<Permission> rsp = plugin.getServer().getServicesManager().getRegistration(Permission.class);
@@ -245,76 +249,561 @@ public class PlayerEventHandler implements Listener {
 						if (perms.playerHas("world_free", Bukkit.getOfflinePlayer(UUID.fromString(regionName.split("_")[1])), "skyprisonclaims.flags.donor")) {
 							hasFlag = true;
 						}
-
-						ProtectedRegion region = regions.getRegion(regionName);
-						assert region != null;
-						if (region.getOwners().contains(player.getName()) || region.getOwners().contains(player.getUniqueId())) {
-							switch (event.getSlot()) {
-								case 8:
-									if (hasFlag) {
-										if (event.isLeftClick()) {
-											if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.ALLOW) {
-												region.setFlag(Flags.TRAMPLE_BLOCKS, StateFlag.State.DENY);
-												region.setFlag(Flags.TRAMPLE_BLOCKS.getRegionGroupFlag(), RegionGroup.MEMBERS);
-											} else if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.DENY) {
-												region.setFlag(Flags.TRAMPLE_BLOCKS, StateFlag.State.ALLOW);
-												region.setFlag(Flags.TRAMPLE_BLOCKS.getRegionGroupFlag(), RegionGroup.MEMBERS);
-											} else {
-												region.setFlag(Flags.TRAMPLE_BLOCKS, StateFlag.State.DENY);
-												region.setFlag(Flags.TRAMPLE_BLOCKS.getRegionGroupFlag(), RegionGroup.MEMBERS);
-											}
-										} else if (event.isRightClick()) {
-											region.getFlags().remove(Flags.TRAMPLE_BLOCKS);
+						switch (event.getSlot()) {
+							case 8:
+								if (hasFlag) {
+									if (event.isLeftClick()) {
+										if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.ALLOW) {
+											region.setFlag(Flags.TRAMPLE_BLOCKS, StateFlag.State.DENY);
+											region.setFlag(Flags.TRAMPLE_BLOCKS.getRegionGroupFlag(), RegionGroup.MEMBERS);
+										} else if (region.getFlag(Flags.TRAMPLE_BLOCKS) == StateFlag.State.DENY) {
+											region.setFlag(Flags.TRAMPLE_BLOCKS, StateFlag.State.ALLOW);
+											region.setFlag(Flags.TRAMPLE_BLOCKS.getRegionGroupFlag(), RegionGroup.MEMBERS);
+										} else {
+											region.setFlag(Flags.TRAMPLE_BLOCKS, StateFlag.State.DENY);
+											region.setFlag(Flags.TRAMPLE_BLOCKS.getRegionGroupFlag(), RegionGroup.MEMBERS);
 										}
-										ClaimService.createFlagGUI(player, region);
+									} else if (event.isRightClick()) {
+										region.getFlags().remove(Flags.TRAMPLE_BLOCKS);
+									}
+									ClaimService.createFlagGUI(player, region);
+								} else {
+									player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
+								}
+								break;
+							case 9:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.PVP) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.PVP, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.PVP) == StateFlag.State.DENY) {
+										region.setFlag(Flags.PVP, StateFlag.State.ALLOW);
 									} else {
-										player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
+										region.setFlag(Flags.PVP, StateFlag.State.ALLOW);
 									}
-									break;
-								case 9:
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.PVP);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 10:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.CREEPER_EXPLOSION) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.CREEPER_EXPLOSION) == StateFlag.State.DENY) {
+										region.setFlag(Flags.CREEPER_EXPLOSION, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.CREEPER_EXPLOSION);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 11:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.TNT) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.TNT, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.TNT) == StateFlag.State.DENY) {
+										region.setFlag(Flags.TNT, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.TNT, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.TNT);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 12:
+								ClaimService.createMobsGUI(player, region);
+								break;
+							case 13:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.MOB_DAMAGE) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.MOB_DAMAGE, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.MOB_DAMAGE) == StateFlag.State.DENY) {
+										region.setFlag(Flags.MOB_DAMAGE, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.MOB_DAMAGE, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.MOB_DAMAGE);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 14:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.LAVA_FLOW) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.LAVA_FLOW, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.LAVA_FLOW) == StateFlag.State.DENY) {
+										region.setFlag(Flags.LAVA_FLOW, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.LAVA_FLOW, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.LAVA_FLOW);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 15:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.WATER_FLOW) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.WATER_FLOW, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.WATER_FLOW) == StateFlag.State.DENY) {
+										region.setFlag(Flags.WATER_FLOW, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.WATER_FLOW, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.WATER_FLOW);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 17:
+								if (hasFlag) {
 									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.PVP) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.PVP, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.PVP) == StateFlag.State.DENY) {
-											region.setFlag(Flags.PVP, StateFlag.State.ALLOW);
+										clientService.addPlayerChatLock(player, "time-lock/" + region.getId());
+										player.closeInventory();
+										player.sendMessage(Configuration.PREFIX + "Type the Time you want in ticks (6000 is noon):");
+									} else if (event.isRightClick()) {
+										region.getFlags().remove(Flags.TIME_LOCK);
+										ClaimService.createFlagGUI(player, region);
+									}
+								} else {
+									player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
+								}
+								break;
+							case 18:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.SNOW_MELT) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.SNOW_MELT, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.SNOW_MELT) == StateFlag.State.DENY) {
+										region.setFlag(Flags.SNOW_MELT, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.SNOW_MELT, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.SNOW_MELT);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 19:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.SNOW_FALL) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.SNOW_FALL, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.SNOW_FALL) == StateFlag.State.DENY) {
+										region.setFlag(Flags.SNOW_FALL, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.SNOW_FALL, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.SNOW_FALL);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 20:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.ICE_FORM) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.ICE_FORM, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.ICE_FORM) == StateFlag.State.DENY) {
+										region.setFlag(Flags.ICE_FORM, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.ICE_FORM, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.ICE_FORM);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 21:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.ICE_MELT) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.ICE_MELT, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.ICE_MELT) == StateFlag.State.DENY) {
+										region.setFlag(Flags.ICE_MELT, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.ICE_MELT, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.ICE_MELT);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 22:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.LEAF_DECAY) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.LEAF_DECAY, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.LEAF_DECAY) == StateFlag.State.DENY) {
+										region.setFlag(Flags.LEAF_DECAY, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.LEAF_DECAY, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.LEAF_DECAY);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 23:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.GRASS_SPREAD) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.GRASS_SPREAD, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.GRASS_SPREAD) == StateFlag.State.DENY) {
+										region.setFlag(Flags.GRASS_SPREAD, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.GRASS_SPREAD, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.GRASS_SPREAD);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 24:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.MYCELIUM_SPREAD) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.MYCELIUM_SPREAD, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.MYCELIUM_SPREAD) == StateFlag.State.DENY) {
+										region.setFlag(Flags.MYCELIUM_SPREAD, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.MYCELIUM_SPREAD, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.MYCELIUM_SPREAD);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 26:
+								if (hasFlag) {
+									if (event.isLeftClick()) {
+										clientService.addPlayerChatLock(player, "greeting-title/" + region.getId());
+										player.closeInventory();
+										player.sendMessage(Configuration.PREFIX + "Type the Greeting Title you want:");
+									} else if (event.isRightClick()) {
+										region.getFlags().remove(Flags.GREET_TITLE);
+										ClaimService.createFlagGUI(player, region);
+									}
+								} else {
+									player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
+								}
+								break;
+							case 27:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.VINE_GROWTH) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.VINE_GROWTH, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.VINE_GROWTH) == StateFlag.State.DENY) {
+										region.setFlag(Flags.VINE_GROWTH, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.VINE_GROWTH, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.VINE_GROWTH);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 28:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.ENTRY) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.ENTRY, StateFlag.State.DENY);
+										for (Player oPlayer : Bukkit.getOnlinePlayers()) {
+											if (oPlayer.getWorld().getName().equalsIgnoreCase("world_free")) {
+												if (!region.getMembers().contains(oPlayer.getUniqueId()) && !region.getOwners().contains(oPlayer.getUniqueId())) {
+													org.bukkit.Location location = oPlayer.getLocation();
+													BlockVector3 v = BlockVector3.at(location.getX(), location.getY(), location.getZ());
+													World world = oPlayer.getWorld();
+													RegionManager rm = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
+													ApplicableRegionSet set = rm.getApplicableRegions(v);
+													for (ProtectedRegion r : set) {
+														org.bukkit.Location nLocation = null;
+														int x = region.getMaximumPoint().getBlockX() - region.getMinimumPoint().getBlockX();
+														int z = region.getMaximumPoint().getBlockZ() - region.getMinimumPoint().getBlockZ();
+														if (x >= 0) {
+															x = region.getMaximumPoint().getBlockX() + 1;
+														} else {
+															x = region.getMaximumPoint().getBlockX() - 1;
+														}
+														if (z >= 0) {
+															z = region.getMaximumPoint().getBlockZ() + 1;
+														} else {
+															z = region.getMaximumPoint().getBlockZ() - 1;
+														}
+														for (int i = 62; i < 320; i++) {
+															org.bukkit.Location loc = new org.bukkit.Location(world, x, i, z);
+															Block block = world.getBlockAt(loc);
+															if (!block.getType().isAir()) {
+																org.bukkit.Location nLoc1 = new org.bukkit.Location(world, x, i, z);
+																org.bukkit.Location nLoc2 = new org.bukkit.Location(world, x, i, z);
+																Block block1 = world.getBlockAt(nLoc1);
+																Block block2 = world.getBlockAt(nLoc2);
+																if (block1.getType().isAir() && block2.getType().isAir()) {
+																	nLocation = nLoc1;
+																	break;
+																}
+															}
+														}
+														if (r == region) {
+															if (nLocation != null) {
+																oPlayer.teleport(nLocation);
+															} else {
+																Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "spawn " + oPlayer.getName());
+															}
+														}
+													}
+												}
+											}
+										}
+									} else if (region.getFlag(Flags.ENTRY) == StateFlag.State.DENY) {
+										region.setFlag(Flags.ENTRY, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.ENTRY, StateFlag.State.DENY);
+										for (Player oPlayer : Bukkit.getOnlinePlayers()) {
+											if (oPlayer.getWorld().getName().equalsIgnoreCase("world_free")) {
+												if (!region.getMembers().contains(oPlayer.getUniqueId()) && !region.getOwners().contains(oPlayer.getUniqueId())) {
+													org.bukkit.Location location = oPlayer.getLocation();
+													BlockVector3 v = BlockVector3.at(location.getX(), location.getY(), location.getZ());
+													World world = oPlayer.getWorld();
+													RegionManager rm = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
+													ApplicableRegionSet set = rm.getApplicableRegions(v);
+													for (ProtectedRegion r : set) {
+														org.bukkit.Location nLocation = null;
+														int x = region.getMaximumPoint().getBlockX() - region.getMinimumPoint().getBlockX();
+														int z = region.getMaximumPoint().getBlockZ() - region.getMinimumPoint().getBlockZ();
+														if (x >= 0) {
+															x = region.getMaximumPoint().getBlockX() + 1;
+														} else {
+															x = region.getMaximumPoint().getBlockX() - 1;
+														}
+														if (z >= 0) {
+															z = region.getMaximumPoint().getBlockZ() + 1;
+														} else {
+															z = region.getMaximumPoint().getBlockZ() - 1;
+														}
+														for (int i = 62; i < 320; i++) {
+															org.bukkit.Location loc = new org.bukkit.Location(world, x, i, z);
+															Block block = world.getBlockAt(loc);
+															if (!block.getType().isAir()) {
+																org.bukkit.Location nLoc1 = new org.bukkit.Location(world, x, i, z);
+																org.bukkit.Location nLoc2 = new org.bukkit.Location(world, x, i, z);
+																Block block1 = world.getBlockAt(nLoc1);
+																Block block2 = world.getBlockAt(nLoc2);
+																if (block1.getType().isAir() && block2.getType().isAir()) {
+																	nLocation = nLoc1;
+																	break;
+																}
+															}
+														}
+														if (r == region) {
+															if (nLocation != null) {
+																oPlayer.teleport(nLocation);
+															} else {
+																Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "spawn " + oPlayer.getName());
+															}
+															break;
+														}
+													}
+												}
+											}
+										}
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.ENTRY);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 29:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.CHORUS_TELEPORT) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.CHORUS_TELEPORT, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.CHORUS_TELEPORT) == StateFlag.State.DENY) {
+										region.setFlag(Flags.CHORUS_TELEPORT, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.CHORUS_TELEPORT, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.CHORUS_TELEPORT);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 30:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.ENDERPEARL) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.ENDERPEARL, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.ENDERPEARL) == StateFlag.State.DENY) {
+										region.setFlag(Flags.ENDERPEARL, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.ENDERPEARL, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.ENDERPEARL);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 31:
+								if (event.isLeftClick()) {
+									clientService.addPlayerChatLock(player, "greeting-message/" + region.getId());
+									player.closeInventory();
+									player.sendMessage(Configuration.PREFIX + "Type the Greeting Message you want:");
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.GREET_MESSAGE);
+									ClaimService.createFlagGUI(player, region);
+								}
+								break;
+							case 32:
+								if (event.isLeftClick()) {
+									clientService.addPlayerChatLock(player, "farewell-message/" + region.getId());
+									player.closeInventory();
+									player.sendMessage(Configuration.PREFIX + "Type the Farewell Message you want:");
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.FAREWELL_MESSAGE);
+									ClaimService.createFlagGUI(player, region);
+								}
+								break;
+							case 33:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.FALL_DAMAGE) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.FALL_DAMAGE, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.FALL_DAMAGE) == StateFlag.State.DENY) {
+										region.setFlag(Flags.FALL_DAMAGE, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.FALL_DAMAGE, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.FALL_DAMAGE);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 35:
+								if (hasFlag) {
+									if (event.isLeftClick()) {
+										clientService.addPlayerChatLock(player, "farewell-title/" + region.getId());
+										player.closeInventory();
+										player.sendMessage(Configuration.PREFIX + "Type the Farewell Title you want:");
+									} else if (event.isRightClick()) {
+										region.getFlags().remove(Flags.FAREWELL_TITLE);
+										ClaimService.createFlagGUI(player, region);
+									}
+								} else {
+									player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
+								}
+								break;
+							case 36:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.PLACE_VEHICLE) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.PLACE_VEHICLE, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.PLACE_VEHICLE) == StateFlag.State.DENY) {
+										region.setFlag(Flags.PLACE_VEHICLE, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.PLACE_VEHICLE, StateFlag.State.ALLOW);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.PLACE_VEHICLE);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 37:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.DESTROY_VEHICLE) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.DESTROY_VEHICLE, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.DESTROY_VEHICLE) == StateFlag.State.DENY) {
+										region.setFlag(Flags.DESTROY_VEHICLE, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.DESTROY_VEHICLE, StateFlag.State.ALLOW);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.DESTROY_VEHICLE);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 38:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.ENDER_BUILD) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.ENDER_BUILD, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.ENDER_BUILD) == StateFlag.State.DENY) {
+										region.setFlag(Flags.ENDER_BUILD, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.ENDER_BUILD, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.ENDER_BUILD);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 39:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.FIRE_SPREAD) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.FIRE_SPREAD, StateFlag.State.DENY);
+										region.setFlag(Flags.LIGHTNING, StateFlag.State.DENY);
+									} else if (region.getFlag(Flags.FIRE_SPREAD) == StateFlag.State.DENY) {
+										region.setFlag(Flags.FIRE_SPREAD, StateFlag.State.ALLOW);
+										region.setFlag(Flags.LIGHTNING, StateFlag.State.ALLOW);
+									} else {
+										region.setFlag(Flags.FIRE_SPREAD, StateFlag.State.DENY);
+										region.setFlag(Flags.LIGHTNING, StateFlag.State.DENY);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.FIRE_SPREAD);
+									region.getFlags().remove(Flags.LIGHTNING);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 40:
+								if (event.isLeftClick()) {
+									if (region.getFlag(Flags.ITEM_PICKUP) == StateFlag.State.ALLOW) {
+										region.setFlag(Flags.ITEM_PICKUP, StateFlag.State.DENY);
+										region.setFlag(Flags.ITEM_PICKUP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
+										region.setFlag(Flags.ITEM_DROP, StateFlag.State.DENY);
+										region.setFlag(Flags.ITEM_DROP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
+									} else if (region.getFlag(Flags.ITEM_PICKUP) == StateFlag.State.DENY) {
+										region.getFlags().remove(Flags.ITEM_PICKUP);
+										region.getFlags().remove(Flags.ITEM_DROP);
+									} else {
+										region.setFlag(Flags.ITEM_PICKUP, StateFlag.State.DENY);
+										region.setFlag(Flags.ITEM_PICKUP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
+										region.setFlag(Flags.ITEM_DROP, StateFlag.State.DENY);
+										region.setFlag(Flags.ITEM_DROP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
+									}
+								} else if (event.isRightClick()) {
+									region.getFlags().remove(Flags.ITEM_PICKUP);
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 44:
+								if (hasFlag) {
+									if (event.isLeftClick()) {
+										if (region.getFlag(plugin.FLY) == StateFlag.State.ALLOW) {
+											region.setFlag(plugin.FLY, StateFlag.State.DENY);
+										} else if (region.getFlag(plugin.FLY) == StateFlag.State.DENY) {
+											region.setFlag(plugin.FLY, StateFlag.State.ALLOW);
 										} else {
-											region.setFlag(Flags.PVP, StateFlag.State.ALLOW);
+											region.setFlag(plugin.FLY, StateFlag.State.ALLOW);
 										}
 									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.PVP);
+										region.getFlags().remove(plugin.FLY);
 									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 10:
+								} else {
+									player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
+								}
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 53:
+								if (hasFlag) {
 									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.CREEPER_EXPLOSION) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.CREEPER_EXPLOSION) == StateFlag.State.DENY) {
-											region.setFlag(Flags.CREEPER_EXPLOSION, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.CREEPER_EXPLOSION, StateFlag.State.DENY);
-										}
+										clientService.addPlayerChatLock(player, "weather-lock/" + region.getId());
+										player.closeInventory();
+										player.sendMessage(Configuration.PREFIX + "Type the Weather you want (clear, rain, thunder):");
 									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.CREEPER_EXPLOSION);
+										region.getFlags().remove(Flags.WEATHER_LOCK);
+										ClaimService.createFlagGUI(player, region);
 									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 11:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.TNT) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.TNT, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.TNT) == StateFlag.State.DENY) {
-											region.setFlag(Flags.TNT, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.TNT, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.TNT);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 12:
-/*								if (event.isLeftClick()) {
+								} else {
+									player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
+								}
+								break;
+						}
+					} else if (guiId.equalsIgnoreCase("flags-mobs-main")) {
+						switch (event.getSlot()) {
+							case 11:
+								ClaimService.createFlagGUI(player, region);
+								break;
+							case 12:
+								if (event.isLeftClick()) {
 									if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.ALLOW) {
 										region.setFlag(Flags.MOB_SPAWNING, StateFlag.State.DENY);
 									} else if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.DENY) {
@@ -325,498 +814,62 @@ public class PlayerEventHandler implements Listener {
 								} else if (event.isRightClick()) {
 									region.getFlags().remove(Flags.MOB_SPAWNING);
 								}
-								ClaimService.createFlagGUI(player, region);*/
-
-									ClaimService.createAllowedMobsGUI(player, region, 1);
-									break;
-								case 13:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.MOB_DAMAGE) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.MOB_DAMAGE, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.MOB_DAMAGE) == StateFlag.State.DENY) {
-											region.setFlag(Flags.MOB_DAMAGE, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.MOB_DAMAGE, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.MOB_DAMAGE);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 14:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.LAVA_FLOW) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.LAVA_FLOW, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.LAVA_FLOW) == StateFlag.State.DENY) {
-											region.setFlag(Flags.LAVA_FLOW, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.LAVA_FLOW, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.LAVA_FLOW);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 15:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.WATER_FLOW) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.WATER_FLOW, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.WATER_FLOW) == StateFlag.State.DENY) {
-											region.setFlag(Flags.WATER_FLOW, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.WATER_FLOW, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.WATER_FLOW);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 17:
-									if (hasFlag) {
-										if (event.isLeftClick()) {
-											clientService.addPlayerChatLock(player, "time-lock/" + region.getId());
-											player.closeInventory();
-											player.sendMessage(Configuration.PREFIX + "Type the Time you want in ticks (6000 is noon):");
-										} else if (event.isRightClick()) {
-											region.getFlags().remove(Flags.TIME_LOCK);
-											ClaimService.createFlagGUI(player, region);
-										}
-									} else {
-										player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
-									}
-									break;
-								case 18:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.SNOW_MELT) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.SNOW_MELT, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.SNOW_MELT) == StateFlag.State.DENY) {
-											region.setFlag(Flags.SNOW_MELT, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.SNOW_MELT, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.SNOW_MELT);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 19:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.SNOW_FALL) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.SNOW_FALL, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.SNOW_FALL) == StateFlag.State.DENY) {
-											region.setFlag(Flags.SNOW_FALL, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.SNOW_FALL, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.SNOW_FALL);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 20:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.ICE_FORM) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.ICE_FORM, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.ICE_FORM) == StateFlag.State.DENY) {
-											region.setFlag(Flags.ICE_FORM, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.ICE_FORM, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.ICE_FORM);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 21:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.ICE_MELT) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.ICE_MELT, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.ICE_MELT) == StateFlag.State.DENY) {
-											region.setFlag(Flags.ICE_MELT, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.ICE_MELT, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.ICE_MELT);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 22:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.LEAF_DECAY) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.LEAF_DECAY, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.LEAF_DECAY) == StateFlag.State.DENY) {
-											region.setFlag(Flags.LEAF_DECAY, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.LEAF_DECAY, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.LEAF_DECAY);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 23:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.GRASS_SPREAD) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.GRASS_SPREAD, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.GRASS_SPREAD) == StateFlag.State.DENY) {
-											region.setFlag(Flags.GRASS_SPREAD, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.GRASS_SPREAD, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.GRASS_SPREAD);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 24:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.MYCELIUM_SPREAD) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.MYCELIUM_SPREAD, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.MYCELIUM_SPREAD) == StateFlag.State.DENY) {
-											region.setFlag(Flags.MYCELIUM_SPREAD, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.MYCELIUM_SPREAD, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.MYCELIUM_SPREAD);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 26:
-									if (hasFlag) {
-										if (event.isLeftClick()) {
-											clientService.addPlayerChatLock(player, "greeting-title/" + region.getId());
-											player.closeInventory();
-											player.sendMessage(Configuration.PREFIX + "Type the Greeting Title you want:");
-										} else if (event.isRightClick()) {
-											region.getFlags().remove(Flags.GREET_TITLE);
-											ClaimService.createFlagGUI(player, region);
-										}
-									} else {
-										player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
-									}
-									break;
-								case 27:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.VINE_GROWTH) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.VINE_GROWTH, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.VINE_GROWTH) == StateFlag.State.DENY) {
-											region.setFlag(Flags.VINE_GROWTH, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.VINE_GROWTH, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.VINE_GROWTH);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 28:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.ENTRY) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.ENTRY, StateFlag.State.DENY);
-											for (Player oPlayer : Bukkit.getOnlinePlayers()) {
-												if (oPlayer.getWorld().getName().equalsIgnoreCase("world_free")) {
-													if (!region.getMembers().contains(oPlayer.getUniqueId()) && !region.getOwners().contains(oPlayer.getUniqueId())) {
-														org.bukkit.Location location = oPlayer.getLocation();
-														BlockVector3 v = BlockVector3.at(location.getX(), location.getY(), location.getZ());
-														World world = oPlayer.getWorld();
-														RegionManager rm = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
-														ApplicableRegionSet set = rm.getApplicableRegions(v);
-														for (ProtectedRegion r : set) {
-															org.bukkit.Location nLocation = null;
-															int x = region.getMaximumPoint().getBlockX() - region.getMinimumPoint().getBlockX();
-															int z = region.getMaximumPoint().getBlockZ() - region.getMinimumPoint().getBlockZ();
-															if (x >= 0) {
-																x = region.getMaximumPoint().getBlockX() + 1;
-															} else {
-																x = region.getMaximumPoint().getBlockX() - 1;
-															}
-															if (z >= 0) {
-																z = region.getMaximumPoint().getBlockZ() + 1;
-															} else {
-																z = region.getMaximumPoint().getBlockZ() - 1;
-															}
-															for (int i = 62; i < 320; i++) {
-																org.bukkit.Location loc = new org.bukkit.Location(world, x, i, z);
-																Block block = world.getBlockAt(loc);
-																if (!block.getType().isAir()) {
-																	org.bukkit.Location nLoc1 = new org.bukkit.Location(world, x, i, z);
-																	org.bukkit.Location nLoc2 = new org.bukkit.Location(world, x, i, z);
-																	Block block1 = world.getBlockAt(nLoc1);
-																	Block block2 = world.getBlockAt(nLoc2);
-																	if (block1.getType().isAir() && block2.getType().isAir()) {
-																		nLocation = nLoc1;
-																		break;
-																	}
-																}
-															}
-															if (r == region) {
-																if (nLocation != null) {
-																	oPlayer.teleport(nLocation);
-																} else {
-																	Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "spawn " + oPlayer.getName());
-																}
-															}
-														}
-													}
-												}
-											}
-										} else if (region.getFlag(Flags.ENTRY) == StateFlag.State.DENY) {
-											region.setFlag(Flags.ENTRY, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.ENTRY, StateFlag.State.DENY);
-											for (Player oPlayer : Bukkit.getOnlinePlayers()) {
-												if (oPlayer.getWorld().getName().equalsIgnoreCase("world_free")) {
-													if (!region.getMembers().contains(oPlayer.getUniqueId()) && !region.getOwners().contains(oPlayer.getUniqueId())) {
-														org.bukkit.Location location = oPlayer.getLocation();
-														BlockVector3 v = BlockVector3.at(location.getX(), location.getY(), location.getZ());
-														World world = oPlayer.getWorld();
-														RegionManager rm = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
-														ApplicableRegionSet set = rm.getApplicableRegions(v);
-														for (ProtectedRegion r : set) {
-															org.bukkit.Location nLocation = null;
-															int x = region.getMaximumPoint().getBlockX() - region.getMinimumPoint().getBlockX();
-															int z = region.getMaximumPoint().getBlockZ() - region.getMinimumPoint().getBlockZ();
-															if (x >= 0) {
-																x = region.getMaximumPoint().getBlockX() + 1;
-															} else {
-																x = region.getMaximumPoint().getBlockX() - 1;
-															}
-															if (z >= 0) {
-																z = region.getMaximumPoint().getBlockZ() + 1;
-															} else {
-																z = region.getMaximumPoint().getBlockZ() - 1;
-															}
-															for (int i = 62; i < 320; i++) {
-																org.bukkit.Location loc = new org.bukkit.Location(world, x, i, z);
-																Block block = world.getBlockAt(loc);
-																if (!block.getType().isAir()) {
-																	org.bukkit.Location nLoc1 = new org.bukkit.Location(world, x, i, z);
-																	org.bukkit.Location nLoc2 = new org.bukkit.Location(world, x, i, z);
-																	Block block1 = world.getBlockAt(nLoc1);
-																	Block block2 = world.getBlockAt(nLoc2);
-																	if (block1.getType().isAir() && block2.getType().isAir()) {
-																		nLocation = nLoc1;
-																		break;
-																	}
-																}
-															}
-															if (r == region) {
-																if (nLocation != null) {
-																	oPlayer.teleport(nLocation);
-																} else {
-																	Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "spawn " + oPlayer.getName());
-																}
-																break;
-															}
-														}
-													}
-												}
-											}
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.ENTRY);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 29:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.CHORUS_TELEPORT) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.CHORUS_TELEPORT, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.CHORUS_TELEPORT) == StateFlag.State.DENY) {
-											region.setFlag(Flags.CHORUS_TELEPORT, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.CHORUS_TELEPORT, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.CHORUS_TELEPORT);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 30:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.ENDERPEARL) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.ENDERPEARL, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.ENDERPEARL) == StateFlag.State.DENY) {
-											region.setFlag(Flags.ENDERPEARL, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.ENDERPEARL, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.ENDERPEARL);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 31:
-									if (event.isLeftClick()) {
-										clientService.addPlayerChatLock(player, "greeting-message/" + region.getId());
-										player.closeInventory();
-										player.sendMessage(Configuration.PREFIX + "Type the Greeting Message you want:");
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.GREET_MESSAGE);
-										ClaimService.createFlagGUI(player, region);
-									}
-									break;
-								case 32:
-									if (event.isLeftClick()) {
-										clientService.addPlayerChatLock(player, "farewell-message/" + region.getId());
-										player.closeInventory();
-										player.sendMessage(Configuration.PREFIX + "Type the Farewell Message you want:");
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.FAREWELL_MESSAGE);
-										ClaimService.createFlagGUI(player, region);
-									}
-									break;
-								case 33:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.FALL_DAMAGE) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.FALL_DAMAGE, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.FALL_DAMAGE) == StateFlag.State.DENY) {
-											region.setFlag(Flags.FALL_DAMAGE, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.FALL_DAMAGE, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.FALL_DAMAGE);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 35:
-									if (hasFlag) {
-										if (event.isLeftClick()) {
-											clientService.addPlayerChatLock(player, "farewell-title/" + region.getId());
-											player.closeInventory();
-											player.sendMessage(Configuration.PREFIX + "Type the Farewell Title you want:");
-										} else if (event.isRightClick()) {
-											region.getFlags().remove(Flags.FAREWELL_TITLE);
-											ClaimService.createFlagGUI(player, region);
-										}
-									} else {
-										player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
-									}
-									break;
-								case 36:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.PLACE_VEHICLE) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.PLACE_VEHICLE, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.PLACE_VEHICLE) == StateFlag.State.DENY) {
-											region.setFlag(Flags.PLACE_VEHICLE, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.PLACE_VEHICLE, StateFlag.State.ALLOW);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.PLACE_VEHICLE);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 37:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.DESTROY_VEHICLE) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.DESTROY_VEHICLE, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.DESTROY_VEHICLE) == StateFlag.State.DENY) {
-											region.setFlag(Flags.DESTROY_VEHICLE, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.DESTROY_VEHICLE, StateFlag.State.ALLOW);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.DESTROY_VEHICLE);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 38:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.ENDER_BUILD) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.ENDER_BUILD, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.ENDER_BUILD) == StateFlag.State.DENY) {
-											region.setFlag(Flags.ENDER_BUILD, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.ENDER_BUILD, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.ENDER_BUILD);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 39:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.FIRE_SPREAD) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.FIRE_SPREAD, StateFlag.State.DENY);
-											region.setFlag(Flags.LIGHTNING, StateFlag.State.DENY);
-										} else if (region.getFlag(Flags.FIRE_SPREAD) == StateFlag.State.DENY) {
-											region.setFlag(Flags.FIRE_SPREAD, StateFlag.State.ALLOW);
-											region.setFlag(Flags.LIGHTNING, StateFlag.State.ALLOW);
-										} else {
-											region.setFlag(Flags.FIRE_SPREAD, StateFlag.State.DENY);
-											region.setFlag(Flags.LIGHTNING, StateFlag.State.DENY);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.FIRE_SPREAD);
-										region.getFlags().remove(Flags.LIGHTNING);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 40:
-									if (event.isLeftClick()) {
-										if (region.getFlag(Flags.ITEM_PICKUP) == StateFlag.State.ALLOW) {
-											region.setFlag(Flags.ITEM_PICKUP, StateFlag.State.DENY);
-											region.setFlag(Flags.ITEM_PICKUP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
-											region.setFlag(Flags.ITEM_DROP, StateFlag.State.DENY);
-											region.setFlag(Flags.ITEM_DROP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
-										} else if (region.getFlag(Flags.ITEM_PICKUP) == StateFlag.State.DENY) {
-											region.getFlags().remove(Flags.ITEM_PICKUP);
-											region.getFlags().remove(Flags.ITEM_DROP);
-										} else {
-											region.setFlag(Flags.ITEM_PICKUP, StateFlag.State.DENY);
-											region.setFlag(Flags.ITEM_PICKUP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
-											region.setFlag(Flags.ITEM_DROP, StateFlag.State.DENY);
-											region.setFlag(Flags.ITEM_DROP.getRegionGroupFlag(), RegionGroup.NON_MEMBERS);
-										}
-									} else if (event.isRightClick()) {
-										region.getFlags().remove(Flags.ITEM_PICKUP);
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 44:
-									if (hasFlag) {
-										if (event.isLeftClick()) {
-											if (region.getFlag(plugin.FLY) == StateFlag.State.ALLOW) {
-												region.setFlag(plugin.FLY, StateFlag.State.DENY);
-											} else if (region.getFlag(plugin.FLY) == StateFlag.State.DENY) {
-												region.setFlag(plugin.FLY, StateFlag.State.ALLOW);
-											} else {
-												region.setFlag(plugin.FLY, StateFlag.State.ALLOW);
-											}
-										} else if (event.isRightClick()) {
-											region.getFlags().remove(plugin.FLY);
-										}
-									} else {
-										player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
-									}
-									ClaimService.createFlagGUI(player, region);
-									break;
-								case 53:
-									if (hasFlag) {
-										if (event.isLeftClick()) {
-											clientService.addPlayerChatLock(player, "weather-lock/" + region.getId());
-											player.closeInventory();
-											player.sendMessage(Configuration.PREFIX + "Type the Weather you want (clear, rain, thunder):");
-										} else if (event.isRightClick()) {
-											region.getFlags().remove(Flags.WEATHER_LOCK);
-											ClaimService.createFlagGUI(player, region);
-										}
-									} else {
-										player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
-									}
-									break;
-							}
+								ClaimService.createMobsGUI(player, region);
+								break;
+							case 14:
+								ClaimService.createAllowedMobsGUI(player, region, 1);
+								break;
+							case 15:
+								ClaimService.createDeniedMobsGUI(player, region, 1);
+								break;
 						}
-					} else if(guiId.equalsIgnoreCase("flags-mobs-main")) {
+					} else if (guiId.equalsIgnoreCase("flags-mobs-allowed")) {
+						NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
+						String mob = regionData.get(key3, PersistentDataType.STRING);
+						NamespacedKey key4= new NamespacedKey(plugin, "page");
+						int page = regionData.get(key4, PersistentDataType.INTEGER);
 
-					} else if(guiId.equalsIgnoreCase("flags-mobs-allowed")) {
+						if(event.getSlot() < 36) {
+							Set<EntityType> deniedMobs = region.getFlag(Flags.DENY_SPAWN);
+							if (deniedMobs == null || deniedMobs.isEmpty()) {
+								deniedMobs = new HashSet<>();
+							}
+							deniedMobs.add(BukkitAdapter.adapt(org.bukkit.entity.EntityType.valueOf(mob)));
+							region.setFlag(Flags.DENY_SPAWN, deniedMobs);
+							ClaimService.createAllowedMobsGUI(player, region, page);
+						} else if(event.getSlot() == 45) {
+							ClaimService.createMobsGUI(player, region);
+						} else if(event.getSlot() == 48) {
+							if(event.getClickedInventory().getItem(event.getSlot()).getType().equals(Material.PAPER))
+								ClaimService.createAllowedMobsGUI(player, region, page-1);
+						} else if(event.getSlot() == 49) {
 
-					} else if(guiId.equalsIgnoreCase("flags-mobs-denied")) {
+						} else if(event.getSlot() == 50) {
+							if(event.getClickedInventory().getItem(event.getSlot()).getType().equals(Material.PAPER))
+								ClaimService.createAllowedMobsGUI(player, region, page+1);
+						}
+					} else if (guiId.equalsIgnoreCase("flags-mobs-denied")) {
+						NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
+						String mob = regionData.get(key3, PersistentDataType.STRING);
+						NamespacedKey key4= new NamespacedKey(plugin, "page");
+						int page = regionData.get(key4, PersistentDataType.INTEGER);
 
+						if(event.getSlot() < 36) {
+							Set<EntityType> deniedMobs = region.getFlag(Flags.DENY_SPAWN);
+							deniedMobs.remove(BukkitAdapter.adapt(org.bukkit.entity.EntityType.valueOf(mob)));
+							region.setFlag(Flags.DENY_SPAWN, deniedMobs);
+							ClaimService.createDeniedMobsGUI(player, region, page);
+						} else if(event.getSlot() == 45) {
+							ClaimService.createMobsGUI(player, region);
+						} else if(event.getSlot() == 48) {
+							if(event.getClickedInventory().getItem(event.getSlot()).getType().equals(Material.PAPER))
+								ClaimService.createDeniedMobsGUI(player, region, page-1);
+						} else if(event.getSlot() == 49) {
+
+						} else if(event.getSlot() == 50) {
+							if(event.getClickedInventory().getItem(event.getSlot()).getType().equals(Material.PAPER))
+								ClaimService.createDeniedMobsGUI(player, region, page+1);
+						}
 					}
 				}
 			}

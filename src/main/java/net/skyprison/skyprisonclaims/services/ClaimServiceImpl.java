@@ -1015,15 +1015,7 @@ public class ClaimServiceImpl implements ClaimService {
 				ItemMeta flagMeta = flag.getItemMeta();
 				flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Mob Spawning");
 				ArrayList<String> lore = new ArrayList<>();
-				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable Mob Spawning in your claim!");
-				lore.add("");
-				if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.ALLOW) {
-					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-				} else if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.DENY) {
-					lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
-				} else {
-					lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
-				}
+				lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Opens the Mob Spawning GUI");
 				flagMeta.setLore(lore);
 				flag.setItemMeta(flagMeta);
 				flagsGUI.setItem(i, flag);
@@ -1497,7 +1489,6 @@ public class ClaimServiceImpl implements ClaimService {
 		ItemMeta paneMetaW = paneWhite.getItemMeta();
 		paneMetaW.setDisplayName(" ");
 		paneWhite.setItemMeta(paneMetaW);
-        HeadDatabaseAPI hAPI = new HeadDatabaseAPI();
 		for (int i = 0; i < 27; i++) {
 			if(i == 0) {
 				ItemStack startPane = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
@@ -1507,7 +1498,7 @@ public class ClaimServiceImpl implements ClaimService {
 				startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
 
 				NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
-				startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs");
+				startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-main");
 				startPane.setItemMeta(startMeta);
 				flagsGUI.setItem(i, startPane);
 			} else if (i <= 10 || i == 13 || i >= 16) {
@@ -1523,22 +1514,23 @@ public class ClaimServiceImpl implements ClaimService {
                 ItemStack flag = new ItemStack(Material.BROWN_CONCRETE);
                 ItemMeta flagMeta = flag.getItemMeta();
 
-                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Enabled/Disable Mob Spawning");
+                flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "All Mob Spawning");
                 ArrayList<String> lore = new ArrayList<>();
                 lore.add(ChatColor.DARK_AQUA + " " + ChatColor.ITALIC + "Enable/disable all mob spawning from your claim!");
+				lore.add(ChatColor.RED + " " + ChatColor.ITALIC + "WARNING! IF DISABLED WILL OVERRIDE PER MOBS.");
                 lore.add("");
                 if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.ALLOW) {
-                    lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "ENABLED");
+                    lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "PER MOB SPAWNING");
                 } else if (region.getFlag(Flags.MOB_SPAWNING) == StateFlag.State.DENY) {
-                    lore.add(ChatColor.RED + "" + ChatColor.BOLD + "DISABLED");
+                    lore.add(ChatColor.RED + "" + ChatColor.BOLD + "ALL MOBS DISABLED");
                 } else {
-                    lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "PER MOB ENABLED");
+                    lore.add(ChatColor.GRAY + "" + ChatColor.BOLD + "PER MOB SPAWNING");
                 }
                 flagMeta.setLore(lore);
                 flag.setItemMeta(flagMeta);
                 flagsGUI.setItem(i, flag);
             } else if (i == 14) {
-                ItemStack flag = new ItemStack(Material.BROWN_CONCRETE);
+                ItemStack flag = new ItemStack(Material.GREEN_CONCRETE);
                 ItemMeta flagMeta = flag.getItemMeta();
                 flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Enabled Mobs");
                 ArrayList<String> lore = new ArrayList<>();
@@ -1547,7 +1539,7 @@ public class ClaimServiceImpl implements ClaimService {
                 flag.setItemMeta(flagMeta);
                 flagsGUI.setItem(i, flag);
             } else if (i == 15) {
-                ItemStack flag = hAPI.getItemHead("31266");
+                ItemStack flag = new ItemStack(Material.RED_CONCRETE);
                 ItemMeta flagMeta = flag.getItemMeta();
                 flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Disabled Mobs");
                 ArrayList<String> lore = new ArrayList<>();
@@ -1724,7 +1716,7 @@ public class ClaimServiceImpl implements ClaimService {
 
     @Override
     public void createAllowedMobsGUI(Player player, ProtectedRegion region, Integer page) {
-		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Allow/Deny Mob Spawns for: " + region.getId().substring(43));
+		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Allowed Mob Spawns for: " + region.getId().substring(43));
 		ItemStack paneGray = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
 		ItemMeta paneMetaG = paneGray.getItemMeta();
 		paneMetaG.setDisplayName(" ");
@@ -1748,7 +1740,6 @@ public class ClaimServiceImpl implements ClaimService {
 						mobs.add(entity);
 		}
 
-
 		Set<com.sk89q.worldedit.world.entity.EntityType> deniedEntities = region.getFlag(Flags.DENY_SPAWN);
 
 		if(deniedEntities != null && !deniedEntities.isEmpty()) {
@@ -1769,31 +1760,54 @@ public class ClaimServiceImpl implements ClaimService {
 			}
 		}
 
-		for(EntityType useMob : useMobs) {
-			Bukkit.getLogger().info(useMob.name());
+		if(totalPages == 0) {
+			totalPages = 1;
 		}
 
-		int b = 0;
+		Bukkit.getLogger().info(totalPages + " wham");
+
+		if(page > totalPages) {
+			Bukkit.getLogger().info(totalPages + " whamas");
+			createDeniedMobsGUI(player, region, totalPages);
+		}
 
 		for (int i = 0; i < 54; i++) {
 			if (i < 36) {
-				ItemStack startPane = hAPI.getItemHead(getMobHead(useMobs.get(i)));
-				ItemMeta startMeta = startPane.getItemMeta();
-				startMeta.setDisplayName(useMobs.get(b).name());
-				NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
-				startMeta.getPersistentDataContainer().set(key3, PersistentDataType.STRING, useMobs.get(b).name());
-				if(i == 0) {
-					NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
-					startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+				if(useMobs.size() > i) {
+					ItemStack startPane = hAPI.getItemHead(getMobHead(useMobs.get(i)));
+					ItemMeta startMeta = startPane.getItemMeta();
+					startMeta.setDisplayName(ChatColor.GREEN + useMobs.get(i).name());
+					NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
+					startMeta.getPersistentDataContainer().set(key3, PersistentDataType.STRING, useMobs.get(i).name());
+					if (i == 0) {
+						NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+						startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
 
-					NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
-					startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
+						NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+						startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
+
+						NamespacedKey key4 = new NamespacedKey(plugin, "page");
+						startMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
+						startPane.setItemMeta(startMeta);
+						flagsGUI.setItem(i, startPane);
+					}
 					startPane.setItemMeta(startMeta);
 					flagsGUI.setItem(i, startPane);
+				} else if(i == 0) {
+					ItemStack empty = new ItemStack(Material.AIR);
+					ItemMeta emptyMeta = empty.getItemMeta();
+					NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+					emptyMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+
+					NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+					emptyMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
+
+					NamespacedKey key4 = new NamespacedKey(plugin, "page");
+					emptyMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
+
+					empty.setItemMeta(emptyMeta);
+					flagsGUI.setItem(i, empty);
 				}
-				startPane.setItemMeta(startMeta);
-				flagsGUI.setItem(i, startPane);
-				b++;
 			} else {
 				if(i == 45) {
 					ItemStack flag = new ItemStack(Material.NETHER_STAR);
@@ -1812,9 +1826,9 @@ public class ClaimServiceImpl implements ClaimService {
 						flagsGUI.setItem(i, paneGray);
 					}
 				} else if(i == 49) {
-					ItemStack flag = new ItemStack(Material.NETHER_STAR);
+					ItemStack flag = new ItemStack(Material.WRITABLE_BOOK);
 					ItemMeta flagMeta = flag.getItemMeta();
-					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Return to Flags GUI");
+					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Search for Mob");
 					flag.setItemMeta(flagMeta);
 					flagsGUI.setItem(i, flag);
 				} else if(i == 50) {
@@ -1840,7 +1854,118 @@ public class ClaimServiceImpl implements ClaimService {
 
     @Override
     public void createDeniedMobsGUI(Player player, ProtectedRegion region, Integer page) {
+		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Denied Mob Spawns for: " + region.getId().substring(43));
+		ItemStack paneGray = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+		ItemMeta paneMetaG = paneGray.getItemMeta();
+		paneMetaG.setDisplayName(" ");
+		paneGray.setItemMeta(paneMetaG);
 
+		ItemStack paneBlack = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+		ItemMeta paneMetaB = paneBlack.getItemMeta();
+		paneMetaB.setDisplayName(" ");
+		paneGray.setItemMeta(paneMetaB);
+
+		HeadDatabaseAPI hAPI = new HeadDatabaseAPI();
+
+		ArrayList<EntityType> useMobs = new ArrayList<>();
+
+		Set<com.sk89q.worldedit.world.entity.EntityType> deniedEntities = region.getFlag(Flags.DENY_SPAWN);
+
+		if(deniedEntities != null && !deniedEntities.isEmpty()) {
+			for(com.sk89q.worldedit.world.entity.EntityType entity : deniedEntities) {
+				useMobs.add(BukkitAdapter.adapt(entity));
+			}
+		}
+
+		int totalPages = (int) Math.ceil(useMobs.size() / 36.0);
+
+		if(totalPages == 0) {
+			totalPages = 1;
+		}
+
+		if(page > totalPages) {
+			createDeniedMobsGUI(player, region, totalPages);
+		}
+
+		for (int i = 0; i < 54; i++) {
+			if (i < 36) {
+				if(useMobs.size() > i) {
+					ItemStack startPane = hAPI.getItemHead(getMobHead(useMobs.get(i)));
+					ItemMeta startMeta = startPane.getItemMeta();
+					startMeta.setDisplayName(ChatColor.RED + useMobs.get(i).name());
+					NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
+					startMeta.getPersistentDataContainer().set(key3, PersistentDataType.STRING, useMobs.get(i).name());
+					if (i == 0) {
+						NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+						startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+
+						NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+						startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-denied");
+
+						NamespacedKey key4 = new NamespacedKey(plugin, "page");
+						startMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
+						startPane.setItemMeta(startMeta);
+						flagsGUI.setItem(i, startPane);
+					}
+					startPane.setItemMeta(startMeta);
+					flagsGUI.setItem(i, startPane);
+				} else if(i == 0) {
+					ItemStack empty = new ItemStack(Material.AIR);
+					ItemMeta emptyMeta = empty.getItemMeta();
+					NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+					emptyMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+
+					NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+					emptyMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
+
+					NamespacedKey key4 = new NamespacedKey(plugin, "page");
+					emptyMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
+
+					empty.setItemMeta(emptyMeta);
+					flagsGUI.setItem(i, empty);
+				}
+			} else {
+				if(i == 45) {
+					ItemStack flag = new ItemStack(Material.NETHER_STAR);
+					ItemMeta flagMeta = flag.getItemMeta();
+					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Return to Flags GUI");
+					flag.setItemMeta(flagMeta);
+					flagsGUI.setItem(i, flag);
+				} else if(i == 48) {
+					if(page != 1) {
+						ItemStack flag = new ItemStack(Material.PAPER);
+						ItemMeta flagMeta = flag.getItemMeta();
+						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Previous Page");
+						flag.setItemMeta(flagMeta);
+						flagsGUI.setItem(i, flag);
+					} else {
+						flagsGUI.setItem(i, paneGray);
+					}
+				} else if(i == 49) {
+					ItemStack flag = new ItemStack(Material.WRITABLE_BOOK);
+					ItemMeta flagMeta = flag.getItemMeta();
+					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Search for Mob");
+					flag.setItemMeta(flagMeta);
+					flagsGUI.setItem(i, flag);
+				} else if(i == 50) {
+					if(totalPages != page) {
+						ItemStack flag = new ItemStack(Material.PAPER);
+						ItemMeta flagMeta = flag.getItemMeta();
+						flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Next Page");
+						flag.setItemMeta(flagMeta);
+						flagsGUI.setItem(i, flag);
+					} else {
+						flagsGUI.setItem(i, paneGray);
+					}
+				} else if(i <= 44) {
+					flagsGUI.setItem(i, paneBlack);
+				} else {
+					flagsGUI.setItem(i, paneGray);
+				}
+			}
+
+		}
+		player.openInventory(flagsGUI);
     }
 
     @Override
