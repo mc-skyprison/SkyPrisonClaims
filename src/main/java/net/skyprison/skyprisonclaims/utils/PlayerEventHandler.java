@@ -37,9 +37,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.*;
 import net.skyprison.skyprisonclaims.services.ClientService;
 import net.skyprison.skyprisonclaims.services.ClientServiceImpl;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -223,11 +227,12 @@ public class PlayerEventHandler implements Listener {
 
 	@EventHandler
 	public void onInventoryClick(InventoryClickEvent event) {
-		if (event.getCurrentItem() != null) {
-			event.setCancelled(true);
-		}
 		if (event.getWhoClicked() instanceof Player) {
-			if(event.getClickedInventory().getItem(0) != null && !event.getClickedInventory().getItem(0).getPersistentDataContainer().isEmpty()) {
+			if ((event.getClickedInventory().getItem(0) != null && !event.getClickedInventory().getItem(0).getPersistentDataContainer().isEmpty())
+					|| (event.getClickedInventory().getItem(45) != null && !event.getClickedInventory().getItem(45).getPersistentDataContainer().isEmpty())) {
+				if (event.getCurrentItem() != null) {
+					event.setCancelled(true);
+				}
 				Player player = (Player) event.getWhoClicked();
 				RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
 				RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
@@ -235,6 +240,9 @@ public class PlayerEventHandler implements Listener {
 				NamespacedKey guiKey = new NamespacedKey(plugin, "gui-id");
 
 				PersistentDataContainer regionData = Objects.requireNonNull(event.getClickedInventory().getItem(0)).getPersistentDataContainer();
+				if(event.getClickedInventory().getItem(0).getType().equals(Material.PLAYER_HEAD) || event.getClickedInventory().getItem(0).getType().equals(Material.WHITE_STAINED_GLASS_PANE)) {
+					regionData = Objects.requireNonNull(event.getClickedInventory().getItem(45)).getPersistentDataContainer();
+				}
 				String regionName = regionData.get(regionKey, PersistentDataType.STRING);
 				String guiId = regionData.get(guiKey, PersistentDataType.STRING);
 
@@ -824,51 +832,62 @@ public class PlayerEventHandler implements Listener {
 								break;
 						}
 					} else if (guiId.equalsIgnoreCase("flags-mobs-allowed")) {
-						NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
-						String mob = regionData.get(key3, PersistentDataType.STRING);
-						NamespacedKey key4= new NamespacedKey(plugin, "page");
-						int page = regionData.get(key4, PersistentDataType.INTEGER);
+						ItemStack item = event.getClickedInventory().getItem(event.getSlot());
+						if(item != null) {
+							PersistentDataContainer itemData = item.getItemMeta().getPersistentDataContainer();
+							NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
+							String mob = itemData.get(key3, PersistentDataType.STRING);
+							NamespacedKey key4 = new NamespacedKey(plugin, "page");
+							int page = regionData.get(key4, PersistentDataType.INTEGER);
 
-						if(event.getSlot() < 36) {
-							Set<EntityType> deniedMobs = region.getFlag(Flags.DENY_SPAWN);
-							if (deniedMobs == null || deniedMobs.isEmpty()) {
-								deniedMobs = new HashSet<>();
+							if (event.getSlot() < 36) {
+								if(item.getType().equals(Material.PLAYER_HEAD)) {
+									Set<EntityType> deniedMobs = region.getFlag(Flags.DENY_SPAWN);
+									if (deniedMobs == null || deniedMobs.isEmpty()) {
+										deniedMobs = new HashSet<>();
+									}
+									deniedMobs.add(BukkitAdapter.adapt(org.bukkit.entity.EntityType.valueOf(mob)));
+									region.setFlag(Flags.DENY_SPAWN, deniedMobs);
+								}
+								ClaimService.createAllowedMobsGUI(player, region, page);
+							} else if (event.getSlot() == 45) {
+								ClaimService.createMobsGUI(player, region);
+							} else if (event.getSlot() == 48) {
+								if (item.getType().equals(Material.PAPER))
+									ClaimService.createAllowedMobsGUI(player, region, page - 1);
+							} else if (event.getSlot() == 50) {
+								if (item.getType().equals(Material.PAPER))
+									ClaimService.createAllowedMobsGUI(player, region, page + 1);
 							}
-							deniedMobs.add(BukkitAdapter.adapt(org.bukkit.entity.EntityType.valueOf(mob)));
-							region.setFlag(Flags.DENY_SPAWN, deniedMobs);
-							ClaimService.createAllowedMobsGUI(player, region, page);
-						} else if(event.getSlot() == 45) {
-							ClaimService.createMobsGUI(player, region);
-						} else if(event.getSlot() == 48) {
-							if(event.getClickedInventory().getItem(event.getSlot()).getType().equals(Material.PAPER))
-								ClaimService.createAllowedMobsGUI(player, region, page-1);
-						} else if(event.getSlot() == 49) {
-
-						} else if(event.getSlot() == 50) {
-							if(event.getClickedInventory().getItem(event.getSlot()).getType().equals(Material.PAPER))
-								ClaimService.createAllowedMobsGUI(player, region, page+1);
 						}
 					} else if (guiId.equalsIgnoreCase("flags-mobs-denied")) {
-						NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
-						String mob = regionData.get(key3, PersistentDataType.STRING);
-						NamespacedKey key4= new NamespacedKey(plugin, "page");
-						int page = regionData.get(key4, PersistentDataType.INTEGER);
+						ItemStack item = event.getClickedInventory().getItem(event.getSlot());
+						if(item != null) {
+							PersistentDataContainer itemData = item.getItemMeta().getPersistentDataContainer();
+							NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
+							String mob = itemData.get(key3, PersistentDataType.STRING);
+							NamespacedKey key4 = new NamespacedKey(plugin, "page");
+							int page = regionData.get(key4, PersistentDataType.INTEGER);
 
-						if(event.getSlot() < 36) {
-							Set<EntityType> deniedMobs = region.getFlag(Flags.DENY_SPAWN);
-							deniedMobs.remove(BukkitAdapter.adapt(org.bukkit.entity.EntityType.valueOf(mob)));
-							region.setFlag(Flags.DENY_SPAWN, deniedMobs);
-							ClaimService.createDeniedMobsGUI(player, region, page);
-						} else if(event.getSlot() == 45) {
-							ClaimService.createMobsGUI(player, region);
-						} else if(event.getSlot() == 48) {
-							if(event.getClickedInventory().getItem(event.getSlot()).getType().equals(Material.PAPER))
-								ClaimService.createDeniedMobsGUI(player, region, page-1);
-						} else if(event.getSlot() == 49) {
-
-						} else if(event.getSlot() == 50) {
-							if(event.getClickedInventory().getItem(event.getSlot()).getType().equals(Material.PAPER))
-								ClaimService.createDeniedMobsGUI(player, region, page+1);
+							if (event.getSlot() < 36) {
+								if(item.getType().equals(Material.PLAYER_HEAD)) {
+									Set<EntityType> deniedMobs = region.getFlag(Flags.DENY_SPAWN);
+									deniedMobs.remove(BukkitAdapter.adapt(org.bukkit.entity.EntityType.valueOf(mob)));
+									region.setFlag(Flags.DENY_SPAWN, deniedMobs);
+								}
+								ClaimService.createDeniedMobsGUI(player, region, page);
+							} else if (event.getSlot() == 45) {
+								ClaimService.createMobsGUI(player, region);
+							} else if (event.getSlot() == 48) {
+								if (item.getType().equals(Material.PAPER))
+									ClaimService.createDeniedMobsGUI(player, region, page - 1);
+							} else if (event.getSlot() == 49) {
+								player.closeInventory();
+								player.sendMessage(plugin.colourMessage("&aType the mob you want to search for:"));
+							} else if (event.getSlot() == 50) {
+								if (item.getType().equals(Material.PAPER))
+									ClaimService.createDeniedMobsGUI(player, region, page + 1);
+							}
 						}
 					}
 				}
@@ -888,11 +907,9 @@ public class PlayerEventHandler implements Listener {
 					case "clear":
 					case "rain":
 					case "thunder":
-						clientService.removePlayerChatLock(player);
 						ClaimService.setGUIFlag(player, flag, event.getMessage().toLowerCase());
 						break;
 					case "cancel":
-						clientService.removePlayerChatLock(player);
 						player.sendMessage(plugin.colourMessage("&cCancelled"));
 						break;
 					default:
@@ -900,10 +917,10 @@ public class PlayerEventHandler implements Listener {
 						break;
 				}
 			} else {
-				clientService.removePlayerChatLock(player);
 				ClaimService.setGUIFlag(player, flag, event.getMessage());
 			}
 		}
+
 	}
 
 	@EventHandler

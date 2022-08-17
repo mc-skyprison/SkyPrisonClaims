@@ -1716,7 +1716,7 @@ public class ClaimServiceImpl implements ClaimService {
 
     @Override
     public void createAllowedMobsGUI(Player player, ProtectedRegion region, Integer page) {
-		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + "Allowed Mob Spawns for: " + region.getId().substring(43));
+		Inventory flagsGUI = Bukkit.createInventory(null, 54, ChatColor.GREEN + " Mob Spawning: " + region.getId().substring(43));
 		ItemStack paneGray = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
 		ItemMeta paneMetaG = paneGray.getItemMeta();
 		paneMetaG.setDisplayName(" ");
@@ -1725,7 +1725,12 @@ public class ClaimServiceImpl implements ClaimService {
 		ItemStack paneBlack = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
 		ItemMeta paneMetaB = paneBlack.getItemMeta();
 		paneMetaB.setDisplayName(" ");
-		paneGray.setItemMeta(paneMetaB);
+		paneBlack.setItemMeta(paneMetaB);
+
+		ItemStack paneWhite = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
+		ItemMeta paneMetaW = paneWhite.getItemMeta();
+		paneMetaW.setDisplayName(" ");
+		paneWhite.setItemMeta(paneMetaW);
 
 		HeadDatabaseAPI hAPI = new HeadDatabaseAPI();
 
@@ -1752,23 +1757,21 @@ public class ClaimServiceImpl implements ClaimService {
 
 		int totalPages = (int) Math.ceil(mobs.size() / 36.0);
 
+		if(totalPages == 0) {
+			totalPages = 1;
+		}
+
+		if(page > totalPages) {
+			createAllowedMobsGUI(player, region, totalPages);
+			return;
+		}
+
 		ArrayList<EntityType> useMobs = new ArrayList<>();
 
 		for(int i = (36 * (page - 1)); i < 36 + (36 * (page - 1)); i++) {
 			if(mobs.size() > i) {
 				useMobs.add(mobs.get(i));
 			}
-		}
-
-		if(totalPages == 0) {
-			totalPages = 1;
-		}
-
-		Bukkit.getLogger().info(totalPages + " wham");
-
-		if(page > totalPages) {
-			Bukkit.getLogger().info(totalPages + " whamas");
-			createDeniedMobsGUI(player, region, totalPages);
 		}
 
 		for (int i = 0; i < 54; i++) {
@@ -1779,40 +1782,27 @@ public class ClaimServiceImpl implements ClaimService {
 					startMeta.setDisplayName(ChatColor.GREEN + useMobs.get(i).name());
 					NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
 					startMeta.getPersistentDataContainer().set(key3, PersistentDataType.STRING, useMobs.get(i).name());
-					if (i == 0) {
-						NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
-						startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
-
-						NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
-						startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
-
-						NamespacedKey key4 = new NamespacedKey(plugin, "page");
-						startMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
-						startPane.setItemMeta(startMeta);
-						flagsGUI.setItem(i, startPane);
-					}
 					startPane.setItemMeta(startMeta);
 					flagsGUI.setItem(i, startPane);
-				} else if(i == 0) {
-					ItemStack empty = new ItemStack(Material.AIR);
-					ItemMeta emptyMeta = empty.getItemMeta();
-					NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
-					emptyMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+				} else {
 
-					NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
-					emptyMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
-
-					NamespacedKey key4 = new NamespacedKey(plugin, "page");
-					emptyMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
-
-					empty.setItemMeta(emptyMeta);
-					flagsGUI.setItem(i, empty);
+					flagsGUI.setItem(i, paneWhite);
 				}
 			} else {
 				if(i == 45) {
 					ItemStack flag = new ItemStack(Material.NETHER_STAR);
 					ItemMeta flagMeta = flag.getItemMeta();
 					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Return to Flags GUI");
+
+					NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+					flagMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+
+					NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+					flagMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
+
+					NamespacedKey key4 = new NamespacedKey(plugin, "page");
+					flagMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
+
 					flag.setItemMeta(flagMeta);
 					flagsGUI.setItem(i, flag);
 				} else if(i == 48) {
@@ -1825,12 +1815,6 @@ public class ClaimServiceImpl implements ClaimService {
 					} else {
 						flagsGUI.setItem(i, paneGray);
 					}
-				} else if(i == 49) {
-					ItemStack flag = new ItemStack(Material.WRITABLE_BOOK);
-					ItemMeta flagMeta = flag.getItemMeta();
-					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Search for Mob");
-					flag.setItemMeta(flagMeta);
-					flagsGUI.setItem(i, flag);
 				} else if(i == 50) {
 					if(totalPages != page) {
 						ItemStack flag = new ItemStack(Material.PAPER);
@@ -1847,7 +1831,6 @@ public class ClaimServiceImpl implements ClaimService {
 					flagsGUI.setItem(i, paneGray);
 				}
 			}
-
 		}
 		player.openInventory(flagsGUI);
     }
@@ -1864,6 +1847,11 @@ public class ClaimServiceImpl implements ClaimService {
 		ItemMeta paneMetaB = paneBlack.getItemMeta();
 		paneMetaB.setDisplayName(" ");
 		paneGray.setItemMeta(paneMetaB);
+
+		ItemStack paneWhite = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
+		ItemMeta paneMetaW = paneWhite.getItemMeta();
+		paneMetaW.setDisplayName(" ");
+		paneWhite.setItemMeta(paneMetaW);
 
 		HeadDatabaseAPI hAPI = new HeadDatabaseAPI();
 
@@ -1895,40 +1883,26 @@ public class ClaimServiceImpl implements ClaimService {
 					startMeta.setDisplayName(ChatColor.RED + useMobs.get(i).name());
 					NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
 					startMeta.getPersistentDataContainer().set(key3, PersistentDataType.STRING, useMobs.get(i).name());
-					if (i == 0) {
-						NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
-						startMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
-
-						NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
-						startMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-denied");
-
-						NamespacedKey key4 = new NamespacedKey(plugin, "page");
-						startMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
-						startPane.setItemMeta(startMeta);
-						flagsGUI.setItem(i, startPane);
-					}
 					startPane.setItemMeta(startMeta);
 					flagsGUI.setItem(i, startPane);
-				} else if(i == 0) {
-					ItemStack empty = new ItemStack(Material.AIR);
-					ItemMeta emptyMeta = empty.getItemMeta();
-					NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
-					emptyMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
-
-					NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
-					emptyMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-allowed");
-
-					NamespacedKey key4 = new NamespacedKey(plugin, "page");
-					emptyMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
-
-					empty.setItemMeta(emptyMeta);
-					flagsGUI.setItem(i, empty);
+				} else {
+					flagsGUI.setItem(i, paneWhite);
 				}
 			} else {
 				if(i == 45) {
 					ItemStack flag = new ItemStack(Material.NETHER_STAR);
 					ItemMeta flagMeta = flag.getItemMeta();
 					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Return to Flags GUI");
+
+					NamespacedKey key1 = new NamespacedKey(plugin, "region-name");
+					flagMeta.getPersistentDataContainer().set(key1, PersistentDataType.STRING, region.getId());
+
+					NamespacedKey key2 = new NamespacedKey(plugin, "gui-id");
+					flagMeta.getPersistentDataContainer().set(key2, PersistentDataType.STRING, "flags-mobs-denied");
+
+					NamespacedKey key4 = new NamespacedKey(plugin, "page");
+					flagMeta.getPersistentDataContainer().set(key4, PersistentDataType.INTEGER, page);
+
 					flag.setItemMeta(flagMeta);
 					flagsGUI.setItem(i, flag);
 				} else if(i == 48) {
@@ -1941,12 +1915,6 @@ public class ClaimServiceImpl implements ClaimService {
 					} else {
 						flagsGUI.setItem(i, paneGray);
 					}
-				} else if(i == 49) {
-					ItemStack flag = new ItemStack(Material.WRITABLE_BOOK);
-					ItemMeta flagMeta = flag.getItemMeta();
-					flagMeta.setDisplayName(ChatColor.YELLOW + "" + ChatColor.BOLD + "Search for Mob");
-					flag.setItemMeta(flagMeta);
-					flagsGUI.setItem(i, flag);
 				} else if(i == 50) {
 					if(totalPages != page) {
 						ItemStack flag = new ItemStack(Material.PAPER);
