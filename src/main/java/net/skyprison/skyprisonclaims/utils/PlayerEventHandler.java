@@ -229,8 +229,8 @@ public class PlayerEventHandler implements Listener {
 	public void onInventoryClick(InventoryClickEvent event) {
 		if (event.getWhoClicked() instanceof Player) {
 			if(event.getClickedInventory() != null) {
-				if ((event.getClickedInventory().getItem(0) != null && !event.getClickedInventory().getItem(0).getPersistentDataContainer().isEmpty())
-						|| (event.getClickedInventory().getItem(45) != null && !event.getClickedInventory().getItem(45).getPersistentDataContainer().isEmpty())) {
+				if ((event.getClickedInventory().getSize() > 0 && event.getClickedInventory().getItem(0) != null && !event.getClickedInventory().getItem(0).getPersistentDataContainer().isEmpty())
+						|| (event.getClickedInventory().getSize() > 45 && event.getClickedInventory().getItem(45) != null && !event.getClickedInventory().getItem(45).getPersistentDataContainer().isEmpty())) {
 					Player player = (Player) event.getWhoClicked();
 					RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
 					RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
@@ -238,7 +238,8 @@ public class PlayerEventHandler implements Listener {
 					NamespacedKey guiKey = new NamespacedKey(plugin, "gui-id");
 
 					PersistentDataContainer regionData = Objects.requireNonNull(event.getClickedInventory().getItem(0)).getPersistentDataContainer();
-					if (event.getClickedInventory().getItem(0).getType().equals(Material.PLAYER_HEAD) || event.getClickedInventory().getItem(0).getType().equals(Material.WHITE_STAINED_GLASS_PANE)) {
+					if (event.getClickedInventory().getSize() > 45
+							&& (event.getClickedInventory().getItem(0).getType().equals(Material.PLAYER_HEAD) || event.getClickedInventory().getItem(0).getType().equals(Material.WHITE_STAINED_GLASS_PANE))) {
 						regionData = Objects.requireNonNull(event.getClickedInventory().getItem(45)).getPersistentDataContainer();
 					}
 					String regionName = regionData.get(regionKey, PersistentDataType.STRING);
@@ -275,6 +276,7 @@ public class PlayerEventHandler implements Listener {
 											} else if (event.isRightClick()) {
 												region.getFlags().remove(Flags.TRAMPLE_BLOCKS);
 											}
+											player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 											ClaimService.createFlagGUI(player, region);
 										} else {
 											player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
@@ -292,6 +294,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.PVP);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 10:
@@ -306,6 +309,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.CREEPER_EXPLOSION);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 11:
@@ -320,6 +324,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.TNT);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 12:
@@ -337,6 +342,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.MOB_DAMAGE);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 14:
@@ -351,6 +357,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.LAVA_FLOW);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 15:
@@ -365,6 +372,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.WATER_FLOW);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 17:
@@ -376,6 +384,7 @@ public class PlayerEventHandler implements Listener {
 											} else if (event.isRightClick()) {
 												region.getFlags().remove(Flags.TIME_LOCK);
 												ClaimService.createFlagGUI(player, region);
+												player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 											}
 										} else {
 											player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
@@ -393,6 +402,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.SNOW_MELT);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 19:
@@ -407,6 +417,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.SNOW_FALL);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 20:
@@ -421,6 +432,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.ICE_FORM);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 21:
@@ -435,6 +447,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.ICE_MELT);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 22:
@@ -449,6 +462,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.LEAF_DECAY);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 23:
@@ -463,6 +477,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.GRASS_SPREAD);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 24:
@@ -477,6 +492,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.MYCELIUM_SPREAD);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 26:
@@ -488,6 +504,7 @@ public class PlayerEventHandler implements Listener {
 											} else if (event.isRightClick()) {
 												region.getFlags().remove(Flags.GREET_TITLE);
 												ClaimService.createFlagGUI(player, region);
+												player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 											}
 										} else {
 											player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
@@ -505,6 +522,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.VINE_GROWTH);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 28:
@@ -614,6 +632,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.ENTRY);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 29:
@@ -628,6 +647,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.CHORUS_TELEPORT);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 30:
@@ -642,6 +662,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.ENDERPEARL);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 31:
@@ -651,6 +672,7 @@ public class PlayerEventHandler implements Listener {
 											player.sendMessage(Configuration.PREFIX + "Type the Greeting Message you want:");
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.GREET_MESSAGE);
+											player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 											ClaimService.createFlagGUI(player, region);
 										}
 										break;
@@ -661,6 +683,7 @@ public class PlayerEventHandler implements Listener {
 											player.sendMessage(Configuration.PREFIX + "Type the Farewell Message you want:");
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.FAREWELL_MESSAGE);
+											player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 											ClaimService.createFlagGUI(player, region);
 										}
 										break;
@@ -676,6 +699,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.FALL_DAMAGE);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 35:
@@ -686,6 +710,7 @@ public class PlayerEventHandler implements Listener {
 												player.sendMessage(Configuration.PREFIX + "Type the Farewell Title you want:");
 											} else if (event.isRightClick()) {
 												region.getFlags().remove(Flags.FAREWELL_TITLE);
+												player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 												ClaimService.createFlagGUI(player, region);
 											}
 										} else {
@@ -704,6 +729,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.PLACE_VEHICLE);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 37:
@@ -718,6 +744,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.DESTROY_VEHICLE);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 38:
@@ -732,6 +759,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.ENDER_BUILD);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 39:
@@ -750,6 +778,7 @@ public class PlayerEventHandler implements Listener {
 											region.getFlags().remove(Flags.FIRE_SPREAD);
 											region.getFlags().remove(Flags.LIGHTNING);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 40:
@@ -771,6 +800,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.ITEM_PICKUP);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createFlagGUI(player, region);
 										break;
 									case 44:
@@ -786,6 +816,7 @@ public class PlayerEventHandler implements Listener {
 											} else if (event.isRightClick()) {
 												region.getFlags().remove(plugin.FLY);
 											}
+											player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										} else {
 											player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
 										}
@@ -801,6 +832,7 @@ public class PlayerEventHandler implements Listener {
 												region.getFlags().remove(Flags.WEATHER_LOCK);
 												ClaimService.createFlagGUI(player, region);
 											}
+											player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										} else {
 											player.sendMessage(Configuration.PREFIX + "You do not have access to this flag!");
 										}
@@ -823,6 +855,7 @@ public class PlayerEventHandler implements Listener {
 										} else if (event.isRightClick()) {
 											region.getFlags().remove(Flags.MOB_SPAWNING);
 										}
+										player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 										ClaimService.createMobsGUI(player, region);
 										break;
 									case 14:
@@ -848,6 +881,7 @@ public class PlayerEventHandler implements Listener {
 												deniedMobs = new HashSet<>();
 											}
 											deniedMobs.add(BukkitAdapter.adapt(org.bukkit.entity.EntityType.valueOf(mob)));
+											player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 											region.setFlag(Flags.DENY_SPAWN, deniedMobs);
 										}
 										ClaimService.createAllowedMobsGUI(player, region, page);
@@ -874,6 +908,7 @@ public class PlayerEventHandler implements Listener {
 										if (item.getType().equals(Material.PLAYER_HEAD)) {
 											Set<EntityType> deniedMobs = region.getFlag(Flags.DENY_SPAWN);
 											deniedMobs.remove(BukkitAdapter.adapt(org.bukkit.entity.EntityType.valueOf(mob)));
+											player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 											region.setFlag(Flags.DENY_SPAWN, deniedMobs);
 										}
 										ClaimService.createDeniedMobsGUI(player, region, page);
@@ -910,7 +945,9 @@ public class PlayerEventHandler implements Listener {
 					case "clear":
 					case "rain":
 					case "thunder":
+						player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 						ClaimService.setGUIFlag(player, flag, event.getMessage().toLowerCase());
+						clientService.removePlayerChatLock(player);
 						break;
 					case "cancel":
 						player.sendMessage(plugin.colourMessage("&cCancelled"));
@@ -920,7 +957,9 @@ public class PlayerEventHandler implements Listener {
 						break;
 				}
 			} else {
+				player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 				ClaimService.setGUIFlag(player, flag, event.getMessage());
+				clientService.removePlayerChatLock(player);
 			}
 		}
 

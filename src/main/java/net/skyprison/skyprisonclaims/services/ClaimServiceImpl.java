@@ -1780,6 +1780,10 @@ public class ClaimServiceImpl implements ClaimService {
 					ItemStack startPane = hAPI.getItemHead(getMobHead(useMobs.get(i)));
 					ItemMeta startMeta = startPane.getItemMeta();
 					startMeta.setDisplayName(ChatColor.GREEN + useMobs.get(i).name());
+					ArrayList<String> lore = new ArrayList<>();
+					lore.add(" ");
+					lore.add(plugin.colourMessage("&7&lClick to move to deny spawn"));
+					startMeta.setLore(lore);
 					NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
 					startMeta.getPersistentDataContainer().set(key3, PersistentDataType.STRING, useMobs.get(i).name());
 					startPane.setItemMeta(startMeta);
@@ -1881,6 +1885,10 @@ public class ClaimServiceImpl implements ClaimService {
 					ItemStack startPane = hAPI.getItemHead(getMobHead(useMobs.get(i)));
 					ItemMeta startMeta = startPane.getItemMeta();
 					startMeta.setDisplayName(ChatColor.RED + useMobs.get(i).name());
+					ArrayList<String> lore = new ArrayList<>();
+					lore.add(" ");
+					lore.add(plugin.colourMessage("&7&lClick to move to allow spawn"));
+					startMeta.setLore(lore);
 					NamespacedKey key3 = new NamespacedKey(plugin, "animal-id");
 					startMeta.getPersistentDataContainer().set(key3, PersistentDataType.STRING, useMobs.get(i).name());
 					startPane.setItemMeta(startMeta);
