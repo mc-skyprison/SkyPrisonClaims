@@ -40,6 +40,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.checkerframework.checker.units.qual.A;
 
 import java.util.*;
 import java.util.List;
@@ -2046,8 +2047,15 @@ public class ClaimServiceImpl implements ClaimService {
 				BlockVector3.at(player.getLocation().getX()+radius, 319, player.getLocation().getZ()+radius));
 		final List<ProtectedRegion> overlapingClaims = region.getIntersectingRegions(regionManager.getRegions().values());
 		if(!overlapingClaims.isEmpty()) {
-			player.sendMessage(Configuration.PREFIX+"Found " + overlapingClaims.size() + " claims nearby:");
-			overlapingClaims.forEach(claim -> player.sendMessage(ChatColor.YELLOW + "Claim: " +  claim.getId().substring(43)));
+			ArrayList<String> nearbyClaims = new ArrayList<>();
+			for(ProtectedRegion claim : overlapingClaims) {
+				if(claim.getId().startsWith("claim_")) {
+					nearbyClaims.add(ChatColor.YELLOW + "- " + claim.getId().substring(43) + " (X: " + claim.getMaximumPoint().getBlockX() + " Z: " + claim.getMaximumPoint().getBlockZ() + ")");
+				}
+			}
+
+			player.sendMessage(Configuration.PREFIX+"Found " + nearbyClaims.size() + " claims nearby:");
+			nearbyClaims.forEach(player::sendMessage);
 		} else {
 			player.sendMessage(Configuration.PREFIX + "No claims nearby.");
 		}

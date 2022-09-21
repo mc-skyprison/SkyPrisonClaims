@@ -345,10 +345,10 @@ public class Claim implements CommandExecutor {
 					case "nearby":
 						if (args.length >= 2 && args[1] != null) {
 							if(args[1].matches("[1-9]\\d*")) {
-								if(Integer.parseInt(args[1]) <= 50) {
+								if(Integer.parseInt(args[1]) <= 200) {
 									claimService.getNearbyClaims(player, Integer.parseInt(args[1]), regionManager);
 								} else {
-									player.sendMessage(Configuration.PREFIX + "Radius must be 50 blocks or less!");
+									player.sendMessage(Configuration.PREFIX + "Radius must be 200 blocks or less!");
 								}
 							}
 							else {
