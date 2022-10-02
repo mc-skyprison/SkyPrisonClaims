@@ -1,5 +1,6 @@
 package net.skyprison.skyprisonclaims.utils;
 
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.util.Location;
 import com.sk89q.worldguard.LocalPlayer;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
@@ -7,6 +8,7 @@ import com.sk89q.worldguard.session.MoveType;
 import com.sk89q.worldguard.session.Session;
 import com.sk89q.worldguard.session.handler.FlagValueChangeHandler;
 import com.sk89q.worldguard.session.handler.Handler;
+import net.citizensnpcs.api.CitizensAPI;
 import org.bukkit.Bukkit;
 
 import java.util.Objects;
@@ -30,7 +32,7 @@ public class ConsoleCmdFlagHandler extends FlagValueChangeHandler<String> {
 
     @Override
     protected boolean onSetValue(LocalPlayer player, Location from, Location to, ApplicableRegionSet toSet, String currentValue, String lastValue, MoveType moveType) {
-        if(!Objects.equals(lastValue, currentValue)) {
+        if(!Objects.equals(lastValue, currentValue) && !CitizensAPI.getNPCRegistry().isNPC(BukkitAdapter.adapt(player))) {
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), currentValue.replaceAll("<player>", player.getName()));
         }
         return true;
